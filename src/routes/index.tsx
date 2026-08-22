@@ -228,11 +228,18 @@ function OrderKiosk() {
                     const left = remaining(item);
                     const soldOut = !item.available || left === 0;
                     return (
-                      <Card key={item.id} className={`transition-shadow hover:shadow-sm ${soldOut ? "opacity-60" : ""}`}>
+                      <Card key={item.id} className={`transition-all ${soldOut ? "opacity-60 bg-muted/30 border-dashed" : "hover:shadow-sm"}`}>
                         <CardContent className="flex h-full flex-col gap-3 pt-6">
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <h3 className="text-base font-semibold">{item.name}</h3>
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-base font-semibold">{item.name}</h3>
+                                {soldOut && (
+                                  <Badge variant="destructive" className="text-[10px] uppercase font-bold tracking-wider">
+                                    Sold Out
+                                  </Badge>
+                                )}
+                              </div>
                               <p className="text-sm text-muted-foreground">{item.description}</p>
                             </div>
                             <span
@@ -244,11 +251,15 @@ function OrderKiosk() {
                           <div className="mt-auto flex items-center justify-between">
                             <div>
                               <p className="font-semibold">{money(item.price)}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {soldOut ? "Sold out" : `${left} portions left`}
+                              <p className={`text-xs ${soldOut ? "font-semibold text-destructive" : "text-muted-foreground"}`}>
+                                {soldOut ? "Currently unavailable (Out of stock)" : `${left} portions left`}
                               </p>
                             </div>
-                            {soldOut ? null : (
+                            {soldOut ? (
+                              <Badge variant="outline" className="border-destructive/30 text-destructive text-xs">
+                                Sold Out
+                              </Badge>
+                            ) : (
                               <div className="flex items-center gap-2">
                                 <Button
                                   size="icon"
