@@ -100,8 +100,8 @@ export type CanteenState = {
   menuDate: string;
 };
 
-const STORAGE_KEY = "college-canteen-state-v3";
-const AUTH_KEY = "college-canteen-auth-user-v1";
+const STORAGE_KEY = "college-canteen-state-v4";
+const AUTH_KEY = "college-canteen-auth-user-v2";
 
 export const todayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -300,8 +300,8 @@ async function sendServerAction(action: string, payload: any) {
     if (res.ok) {
       const json = await res.json();
       if (json.ok && json.data) {
-        if (json.data.state) {
-          const serverState = json.data.state;
+        const serverState = json.data.state || (json.data.order ? json.data.state : json.data);
+        if (serverState && Array.isArray(serverState.orders)) {
           state = {
             ...state,
             menu: serverState.menu,
@@ -331,7 +331,7 @@ function startPolling() {
   fetchServerState();
   setInterval(() => {
     fetchServerState();
-  }, 1500);
+  }, 1200);
 }
 
 function hydrate() {
