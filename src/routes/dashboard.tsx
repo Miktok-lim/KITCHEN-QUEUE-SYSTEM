@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  cancelOrder,
   money,
   submitFoodReport,
   useCanteen,
@@ -100,8 +101,8 @@ function StudentDashboard() {
       (o.customerName && o.customerName.toLowerCase() === currentUser.name.toLowerCase()),
   );
 
-  const activeOrders = myOrders.filter((o) => o.status !== "served");
-  const pastOrders = myOrders.filter((o) => o.status === "served");
+  const activeOrders = myOrders.filter((o) => o.status !== "served" && o.status !== "cancelled");
+  const pastOrders = myOrders.filter((o) => o.status === "served" || o.status === "cancelled");
   const myReports = reports.filter((r) => r.studentId.toLowerCase() === currentUser.id.toLowerCase());
   const myTransactions = transactions.filter((t) => t.studentId.toLowerCase() === currentUser.id.toLowerCase());
 
@@ -139,6 +140,21 @@ function StudentDashboard() {
     setSelectedItemName("");
     setReportDescription("");
     setRelatedToken(undefined);
+  };
+
+  const handleDiscardOrder = (order: Order) => {
+    const refundNote =
+      order.payment === "wallet" ? ` ${money(order.total)} will be refunded to your meal plan balance.` : "";
+    if (confirm(`Are you sure you want to discard / cancel Order #${order.token}?${refundNote}`)) {
+      const res = cancelOrder(order.id);
+      if (res.ok) {
+        toast.success(
+          `Order #${order.token} has been discarded.${refundNote ? ` Refunded ${money(order.total)} to your wallet.` : ""}`,
+        );
+      } else {
+        toast.error(res.error || "Could not discard order.");
+      }
+    }
   };
 
   const getStatusBadge = (status: OrderStatus) => {
@@ -277,20 +293,30 @@ function StudentDashboard() {
                       <span>Placed: {new Date(order.placedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
                   </CardContent>
-                  <CardFooter className="bg-secondary/20 px-6 py-3 flex justify-between">
+                  <CardFooter className="bg-secondary/20 px-6 py-3 flex flex-wrap items-center justify-between gap-2">
                     <p className="text-xs text-muted-foreground">
                       {order.status === "ready"
                         ? "🔔 Food is ready! Please collect your tray at counter."
                         : "⏳ Cooking in kitchen..."}
                     </p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs text-red-600 hover:text-red-700"
-                      onClick={() => handleOpenReportModal(order.lines[0]?.name, order.token)}
-                    >
-                      Report Item
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40"
+                        onClick={() => handleDiscardOrder(order)}
+                      >
+                        Discard Order
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-amber-600 hover:text-amber-700"
+                        onClick={() => handleOpenReportModal(order.lines[0]?.name, order.token)}
+                      >
+                        Report Issue
+                      </Button>
+                    </div>
                   </CardFooter>
                 </Card>
               ))}
@@ -303,11 +329,11 @@ function StudentDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>Your Past Orders</CardTitle>
-              <CardDescription>Records of all previously served meals.</CardDescription>
+              <CardDescription>Records of all previously completed and discarded meals.</CardDescription>
             </CardHeader>
             <CardContent>
               {pastOrders.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">No past completed orders yet.</p>
+                <p className="py-8 text-center text-sm text-muted-foreground">No past orders yet.</p>
               ) : (
                 <div className="divide-y">
                   {pastOrders.map((order) => (
@@ -315,7 +341,13 @@ function StudentDashboard() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-display font-bold text-primary">Token #{order.token}</span>
-                          <Badge variant="secondary" className="text-xs">Served</Badge>
+                          {order.status === "cancelled" ? (
+                            <Badge variant="outline" className="border-red-400 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300 text-xs">
+                              Discarded / Cancelled {order.payment === "wallet" && "(Refunded)"}
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">Completed</Badge>
+                          )}
                           <span className="text-xs text-muted-foreground">
                             {new Date(order.placedAt).toLocaleDateString([], {
                               month: "short",
@@ -332,14 +364,16 @@ function StudentDashboard() {
 
                       <div className="flex items-center gap-3">
                         <span className="font-semibold text-foreground">{money(order.total)}</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                          onClick={() => handleOpenReportModal(order.lines[0]?.name, order.token)}
-                        >
-                          Feedback / Report
-                        </Button>
+                        {order.status !== "cancelled" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => handleOpenReportModal(order.lines[0]?.name, order.token)}
+                          >
+                            Feedback / Report
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}

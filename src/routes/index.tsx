@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  cancelOrder,
   findStudent,
   money,
   placeOrder,
@@ -146,6 +147,25 @@ function OrderKiosk() {
               <Clock className="h-4 w-4" /> Track in My Dashboard <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
+        </div>
+
+        <div className="mt-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40"
+            onClick={() => {
+              const refundNote =
+                placed.payment === "wallet" ? ` ${money(placed.total)} will be refunded to your meal plan.` : "";
+              if (confirm(`Discard / cancel this order (Token #${placed.token})?${refundNote}`)) {
+                cancelOrder(placed.id);
+                toast.success(`Order #${placed.token} cancelled.${refundNote ? ` Refunded ${money(placed.total)}.` : ""}`);
+                setPlaced(null);
+              }
+            }}
+          >
+            Discard / Cancel this order
+          </Button>
         </div>
       </div>
     );

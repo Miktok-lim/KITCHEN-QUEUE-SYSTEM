@@ -206,6 +206,43 @@ export function handleAction(action: string, payload: any): { ok: boolean; data?
       return { ok: true, data: s };
     }
 
+    case "cancelOrder": {
+      const { orderId } = payload;
+      const order = s.orders.find((o) => o.id === orderId);
+      if (!order) return { ok: false, error: "Order not found." };
+      if (order.status === "served" || order.status === "cancelled") {
+        return { ok: false, error: "Order cannot be discarded at this stage." };
+      }
+
+      // Restore sold portions
+      s.menu = s.menu.map((m) => {
+        const line = order.lines.find((l: any) => l.itemId === m.id);
+        return line ? { ...m, sold: Math.max(0, m.sold - line.qty) } : m;
+      });
+
+      // If wallet payment, refund to student balance
+      if (order.payment === "wallet" && order.studentId) {
+        const student = s.students.find((st) => st.id.toLowerCase() === order.studentId!.toLowerCase());
+        if (student) {
+          student.balance += order.total;
+          s.users = s.users.map((u) => (u.id === student.id && u.balance !== undefined ? { ...u, balance: student.balance } : u));
+          s.transactions = [
+            {
+              id: uid(),
+              studentId: student.id,
+              amount: order.total,
+              label: `Refund: Order #${order.token} discarded`,
+              at: Date.now(),
+            },
+            ...s.transactions,
+          ];
+        }
+      }
+
+      order.status = "cancelled";
+      return { ok: true, data: s };
+    }
+
     case "addUser": {
       const { name, role, program, department, balance, id: customId } = payload;
       if (!name?.trim()) return { ok: false, error: "Name is required." };

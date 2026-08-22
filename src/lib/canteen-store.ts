@@ -56,7 +56,7 @@ export type MenuItem = {
   veg: boolean;
 };
 
-export type OrderStatus = "queued" | "preparing" | "ready" | "served";
+export type OrderStatus = "queued" | "preparing" | "ready" | "served" | "cancelled";
 
 export type OrderLine = { itemId: string; name: string; price: number; qty: number };
 
@@ -684,6 +684,61 @@ export function placeOrder(input: PlaceOrderInput): { ok: true; order: Order } |
 export function setOrderStatus(id: string, status: OrderStatus) {
   setState((s) => ({ ...s, orders: s.orders.map((o) => (o.id === id ? { ...o, status } : o)) }));
   sendServerAction("setOrderStatus", { id, status });
+}
+
+export function cancelOrder(orderId: string): { ok: boolean; error?: string } {
+  const order = state.orders.find((o) => o.id === orderId);
+  if (!order) return { ok: false, error: "Order not found." };
+  if (order.status === "served" || order.status === "cancelled") {
+    return { ok: false, error: "Order cannot be discarded." };
+  }
+
+  setState((s) => {
+    const updatedMenu = s.menu.map((m) => {
+      const line = order.lines.find((l) => l.itemId === m.id);
+      return line ? { ...m, sold: Math.max(0, m.sold - line.qty) } : m;
+    });
+
+    let updatedStudents = s.students;
+    let updatedUsers = s.users;
+    let updatedTx = s.transactions;
+    let updatedCurrentUser = s.currentUser;
+
+    if (order.payment === "wallet" && order.studentId) {
+      const student = s.students.find((st) => st.id.toLowerCase() === order.studentId!.toLowerCase());
+      if (student) {
+        const newBal = student.balance + order.total;
+        updatedStudents = s.students.map((st) => (st.id === student.id ? { ...st, balance: newBal } : st));
+        updatedUsers = s.users.map((u) => (u.id === student.id ? { ...u, balance: newBal } : u));
+        if (s.currentUser?.id === student.id) {
+          updatedCurrentUser = { ...s.currentUser, balance: newBal };
+        }
+        updatedTx = [
+          {
+            id: uid(),
+            studentId: student.id,
+            amount: order.total,
+            label: `Refund: Order #${order.token} discarded`,
+            at: Date.now(),
+          },
+          ...s.transactions,
+        ];
+      }
+    }
+
+    return {
+      ...s,
+      menu: updatedMenu,
+      students: updatedStudents,
+      users: updatedUsers,
+      transactions: updatedTx,
+      currentUser: updatedCurrentUser,
+      orders: s.orders.map((o) => (o.id === orderId ? { ...o, status: "cancelled" } : o)),
+    };
+  });
+
+  sendServerAction("cancelOrder", { orderId });
+  return { ok: true };
 }
 
 /* ---------- wallet ---------- */
