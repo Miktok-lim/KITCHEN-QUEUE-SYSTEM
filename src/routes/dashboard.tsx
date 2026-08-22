@@ -144,13 +144,12 @@ function StudentDashboard() {
   const getStatusBadge = (status: OrderStatus) => {
     switch (status) {
       case "queued":
-        return <Badge variant="outline" className="border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300">🟡 Queued</Badge>;
       case "preparing":
-        return <Badge variant="outline" className="border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">🔵 Cooking / Preparing</Badge>;
+        return <Badge variant="outline" className="border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300">🟡 In Kitchen</Badge>;
       case "ready":
         return <Badge className="animate-pulse bg-green-600 text-white">🟢 Ready for Pickup!</Badge>;
       case "served":
-        return <Badge variant="secondary">⚪ Served</Badge>;
+        return <Badge variant="secondary">⚪ Completed</Badge>;
     }
   };
 
@@ -281,10 +280,8 @@ function StudentDashboard() {
                   <CardFooter className="bg-secondary/20 px-6 py-3 flex justify-between">
                     <p className="text-xs text-muted-foreground">
                       {order.status === "ready"
-                        ? "🔔 Please collect your tray at counter!"
-                        : order.status === "preparing"
-                        ? "👨‍🍳 Cooking in progress..."
-                        : "⏳ Waiting in queue..."}
+                        ? "🔔 Food is ready! Please collect your tray at counter."
+                        : "⏳ Cooking in kitchen..."}
                     </p>
                     <Button
                       variant="ghost"

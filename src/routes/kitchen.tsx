@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChefHat, ShieldAlert, Sparkles, Utensils } from "lucide-react";
+import { ChefHat, CheckCircle2, Clock, ShieldAlert, Sparkles, Utensils } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,23 +9,33 @@ import { money, setOrderStatus, useCanteen, type Order, type OrderStatus } from 
 export const Route = createFileRoute("/kitchen")({
   head: () => ({
     meta: [
-      { title: "Kitchen Board — College Kitchen" },
+      { title: "Kitchen Staff Orders — College Kitchen" },
       {
         name: "description",
-        content: "Live order queue for college kitchen staff: track student orders from queued to preparing, ready and served.",
+        content: "Live incoming orders and ready-for-pickup queue for canteen staff.",
       },
-      { property: "og:title", content: "Kitchen Board — College Kitchen" },
-      { property: "og:description", content: "Live student order queue for the college kitchen staff." },
+      { property: "og:title", content: "Kitchen Staff Orders — College Kitchen" },
+      { property: "og:description", content: "Incoming orders and ready board for canteen staff." },
     ],
   }),
   component: KitchenBoard,
 });
 
-const COLUMNS: Array<{ status: OrderStatus; title: string; next?: OrderStatus; action?: string; badgeColor?: string }> = [
-  { status: "queued", title: "New orders", next: "preparing", action: "Start cooking", badgeColor: "bg-amber-100 text-amber-800" },
-  { status: "preparing", title: "Preparing", next: "ready", action: "Mark ready", badgeColor: "bg-blue-100 text-blue-800" },
-  { status: "ready", title: "Ready for pickup", next: "served", action: "Mark served", badgeColor: "bg-green-100 text-green-800" },
-  { status: "served", title: "Served", badgeColor: "bg-gray-100 text-gray-800" },
+const COLUMNS: Array<{ status: OrderStatus; title: string; next?: OrderStatus; action?: string; icon: any }> = [
+  {
+    status: "queued",
+    title: "Incoming Orders",
+    next: "ready",
+    action: "Mark Ready for Pickup",
+    icon: Clock,
+  },
+  {
+    status: "ready",
+    title: "Ready for Pickup",
+    next: "served",
+    action: "Clear / Collected",
+    icon: CheckCircle2,
+  },
 ];
 
 function KitchenBoard() {
@@ -55,22 +65,22 @@ function KitchenBoard() {
     );
   }
 
-  const activeCount = orders.filter((o) => o.status !== "served").length;
+  const queuedOrders = orders.filter((o) => o.status === "queued" || o.status === "preparing");
+  const readyOrders = orders.filter((o) => o.status === "ready");
+  const totalActive = queuedOrders.length + readyOrders.length;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-8">
       <header className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
-              <ChefHat className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">Kitchen Live Queue</h1>
-              <p className="text-sm text-muted-foreground">
-                {activeCount === 0 ? "No active orders in the queue right now." : `${activeCount} meals being prepared.`}
-              </p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+            <ChefHat className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold">Kitchen Order Board</h1>
+            <p className="text-sm text-muted-foreground">
+              {queuedOrders.length} incoming orders · {readyOrders.length} ready at counter
+            </p>
           </div>
         </div>
 
@@ -83,73 +93,141 @@ function KitchenBoard() {
         )}
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-4">
-        {COLUMNS.map((col) => {
-          const list = orders.filter((o) => o.status === col.status);
-          return (
-            <section key={col.status} className="rounded-xl bg-secondary/60 p-3 shadow-inner">
-              <div className="mb-3 flex items-center justify-between px-1">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">{col.title}</h2>
-                <Badge variant="outline" className="font-mono text-xs">{list.length}</Badge>
+      {/* 2-Column Simplified Layout */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Column 1: Incoming Orders */}
+        <section className="rounded-2xl border bg-card p-4 shadow-sm">
+          <div className="mb-4 flex items-center justify-between border-b pb-3">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-amber-500" />
+              <h2 className="text-base font-bold text-foreground">Incoming Orders</h2>
+            </div>
+            <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 font-bold">
+              {queuedOrders.length} Pending
+            </Badge>
+          </div>
+
+          <div className="space-y-3">
+            {queuedOrders.length === 0 ? (
+              <div className="py-16 text-center text-muted-foreground">
+                <Clock className="mx-auto mb-2 h-10 w-10 opacity-30" />
+                <p className="text-sm font-medium">No pending orders right now.</p>
+                <p className="text-xs">New orders placed by students will appear here in real-time.</p>
               </div>
-              <div className="space-y-3">
-                {list.length === 0 ? (
-                  <p className="px-1 py-4 text-center text-xs text-muted-foreground">Queue is clear.</p>
-                ) : (
-                  list.map((order) => <OrderCard key={order.id} order={order} next={col.next} action={col.action} />)
-                )}
+            ) : (
+              queuedOrders.map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  next="ready"
+                  action="✓ Mark Ready for Pickup"
+                  actionVariant="default"
+                />
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* Column 2: Ready for Pickup */}
+        <section className="rounded-2xl border bg-card p-4 shadow-sm">
+          <div className="mb-4 flex items-center justify-between border-b pb-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              <h2 className="text-base font-bold text-foreground">Ready for Pickup</h2>
+            </div>
+            <Badge className="bg-green-600 font-bold text-white">
+              {readyOrders.length} Ready
+            </Badge>
+          </div>
+
+          <div className="space-y-3">
+            {readyOrders.length === 0 ? (
+              <div className="py-16 text-center text-muted-foreground">
+                <CheckCircle2 className="mx-auto mb-2 h-10 w-10 opacity-30" />
+                <p className="text-sm font-medium">No trays waiting at counter.</p>
+                <p className="text-xs">Mark incoming orders as ready when prepared.</p>
               </div>
-            </section>
-          );
-        })}
+            ) : (
+              readyOrders.map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  next="served"
+                  action="Collected / Clear"
+                  actionVariant="outline"
+                />
+              ))
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );
 }
 
-function OrderCard({ order, next, action }: { order: Order; next?: OrderStatus | undefined; action?: string | undefined }) {
+function OrderCard({
+  order,
+  next,
+  action,
+  actionVariant,
+}: {
+  order: Order;
+  next?: OrderStatus;
+  action?: string;
+  actionVariant?: "default" | "outline";
+}) {
   return (
-    <Card className="border-border/80 shadow-sm transition-all hover:shadow-md">
+    <Card className="border shadow-sm transition-all hover:shadow-md">
       <CardContent className="space-y-3 pt-5">
         <div className="flex items-baseline justify-between border-b pb-2">
-          <span className="font-display text-2xl font-black text-primary">#{order.token}</span>
+          <span className="font-display text-3xl font-black text-primary">#{order.token}</span>
           <span className="text-xs text-muted-foreground">
             {new Date(order.placedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </span>
         </div>
+
         <div>
-          <p className="text-sm font-semibold text-foreground">
+          <p className="text-sm font-bold text-foreground">
             {order.customerName ?? "Walk-in Customer"}
+            {order.studentId && (
+              <span className="ml-1 text-xs font-normal text-muted-foreground">({order.studentId})</span>
+            )}
           </p>
-          {order.studentId && (
-            <p className="text-xs text-muted-foreground">ID: {order.studentId}</p>
-          )}
         </div>
-        <ul className="space-y-1 rounded-md bg-muted/40 p-2 text-sm font-medium">
+
+        <ul className="space-y-1 rounded-lg bg-muted/40 p-2.5 text-sm font-medium">
           {order.lines.map((l) => (
             <li key={l.itemId} className="flex justify-between">
               <span>{l.qty} × {l.name}</span>
             </li>
           ))}
         </ul>
+
         {order.note ? (
           <p className="rounded-md border border-amber-200 bg-amber-50/70 p-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-            ⚠️ <strong>Special Request:</strong> {order.note}
+            ⚠️ <strong>Note:</strong> {order.note}
           </p>
         ) : null}
+
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">{money(order.total)}</span>
           <Badge variant="outline" className="text-[10px]">
-            {order.payment === "wallet" ? "Meal Plan" : "Cash"}
+            {order.payment === "wallet" ? "Meal Plan" : "Cash at Counter"}
           </Badge>
         </div>
+
         {next && action ? (
           <Button
-            className="w-full font-semibold"
+            className={`w-full font-bold ${
+              actionVariant === "outline"
+                ? "border-green-600 text-green-700 hover:bg-green-50 dark:hover:bg-green-950/40"
+                : "bg-primary hover:bg-primary/90"
+            }`}
+            variant={actionVariant || "default"}
             size="sm"
             onClick={() => setOrderStatus(order.id, next)}
           >
-            {action} ➔
+            {action}
           </Button>
         ) : null}
       </CardContent>
