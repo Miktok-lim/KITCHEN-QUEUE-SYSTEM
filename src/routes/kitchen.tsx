@@ -7,20 +7,47 @@ import {
   CheckCircle2,
   ChefHat,
   Clock,
+  Mic,
+  MicOff,
   PackageCheck,
   PackageX,
+  Play,
+  RotateCcw,
+  Settings2,
   ShieldAlert,
+  Sliders,
   Sparkles,
+  Square,
+  Trash2,
+  Upload,
   Utensils,
   Volume2,
   VolumeX,
-  Play,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   money,
   remaining,
@@ -35,17 +62,52 @@ import {
 export const Route = createFileRoute("/kitchen")({
   head: () => ({
     meta: [
-      { title: "Kitchen Staff Orders & Availability — College Kitchen" },
+      { title: "Kitchen Staff Orders & Custom Voice — College Kitchen" },
       {
         name: "description",
-        content: "Live incoming orders with voice announcements, ready queue, and raw material availability control for canteen staff.",
+        content: "Live incoming orders with custom voice speech announcements, audio recorder, and menu stock controls.",
       },
-      { property: "og:title", content: "Kitchen Staff Orders & Availability — College Kitchen" },
-      { property: "og:description", content: "Incoming orders, voice order announcer, and sold-out controls for canteen staff." },
+      { property: "og:title", content: "Kitchen Staff Orders & Custom Voice — College Kitchen" },
+      { property: "og:description", content: "Incoming orders, custom voice engine, and sold-out controls for canteen staff." },
     ],
   }),
   component: KitchenBoard,
 });
+
+export type VoiceConfig = {
+  voiceURI: string;
+  rate: number;
+  pitch: number;
+  prefixPhrase: string;
+  customAudioBase64?: string;
+  useCustomAudioFirst: boolean;
+};
+
+const DEFAULT_VOICE_CONFIG: VoiceConfig = {
+  voiceURI: "",
+  rate: 1.0,
+  pitch: 1.0,
+  prefixPhrase: "New order! Token",
+  useCustomAudioFirst: false,
+};
+
+const VOICE_CONFIG_KEY = "college-canteen-custom-voice-v1";
+
+function loadVoiceConfig(): VoiceConfig {
+  if (typeof window === "undefined") return DEFAULT_VOICE_CONFIG;
+  try {
+    const raw = window.localStorage.getItem(VOICE_CONFIG_KEY);
+    if (raw) return { ...DEFAULT_VOICE_CONFIG, ...JSON.parse(raw) };
+  } catch {}
+  return DEFAULT_VOICE_CONFIG;
+}
+
+function saveVoiceConfig(config: VoiceConfig) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(VOICE_CONFIG_KEY, JSON.stringify(config));
+  } catch {}
+}
 
 // Sound chime generator using Web Audio API
 function playOrderChime() {
@@ -83,40 +145,54 @@ function playOrderChime() {
   }
 }
 
-// Text-to-speech announcer
-function speakOrderAnnouncement(order: Order) {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+// Custom Audio & Speech Synthesizer
+async function speakOrderAnnouncement(order: Order, config: VoiceConfig) {
+  if (typeof window === "undefined") return;
+
+  const itemsSummary = order.lines.map((l) => `${l.qty} ${l.name}`).join(", and ");
+  const textToSpeak = `${config.prefixPhrase} ${order.token}. ${itemsSummary}.`;
+
+  // Step 1: If staff uploaded/recorded custom audio clip, play it first!
+  if (config.customAudioBase64 && config.useCustomAudioFirst) {
+    try {
+      const audio = new Audio(config.customAudioBase64);
+      await new Promise<void>((resolve) => {
+        audio.onended = () => resolve();
+        audio.onerror = () => resolve();
+        audio.play().catch(() => resolve());
+      });
+    } catch {
+      playOrderChime();
+    }
+  } else {
+    playOrderChime();
+  }
+
+  // Step 2: Text-To-Speech Synthesis
+  if (!("speechSynthesis" in window)) return;
 
   try {
-    playOrderChime();
-
-    const itemsSummary = order.lines
-      .map((l) => `${l.qty} ${l.name}`)
-      .join(", and ");
-
-    const textToSpeak = `New order! Token ${order.token}. ${itemsSummary}.`;
-
-    // Cancel any previous speech to announce latest immediately
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.rate = 0.95; // slightly clear and natural
-    utterance.pitch = 1.05;
+    utterance.rate = Math.max(0.5, Math.min(2.0, config.rate));
+    utterance.pitch = Math.max(0.5, Math.min(1.5, config.pitch));
     utterance.volume = 1.0;
 
-    // Try to find a clear English voice if available
     const voices = window.speechSynthesis.getVoices();
-    const englishVoice =
-      voices.find((v) => v.lang.startsWith("en") && (v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Samantha"))) ||
-      voices.find((v) => v.lang.startsWith("en"));
-    if (englishVoice) {
-      utterance.voice = englishVoice;
+    if (config.voiceURI) {
+      const selected = voices.find((v) => v.voiceURI === config.voiceURI);
+      if (selected) utterance.voice = selected;
+    } else {
+      const naturalVoice =
+        voices.find((v) => v.lang.startsWith("en") && (v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Samantha"))) ||
+        voices.find((v) => v.lang.startsWith("en"));
+      if (naturalVoice) utterance.voice = naturalVoice;
     }
 
-    // Small delay after chime before speaking
     setTimeout(() => {
       window.speechSynthesis.speak(utterance);
-    }, 250);
+    }, 200);
   } catch (err) {
     console.error("Speech synthesis failed:", err);
   }
@@ -127,8 +203,16 @@ function KitchenBoard() {
   const menu = useCanteen((s) => s.menu);
   const currentUser = useCanteen((s) => s.currentUser);
 
-  // Voice notification state (defaults to true)
+  // Voice notification state
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceConfig, setVoiceConfig] = useState<VoiceConfig>(DEFAULT_VOICE_CONFIG);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   // Track orders that have already been announced to avoid duplicate voice alerts
   const announcedRef = useRef<Set<string>>(new Set());
@@ -137,7 +221,25 @@ function KitchenBoard() {
   const queuedOrders = orders.filter((o) => o.status === "queued" || o.status === "preparing");
   const readyOrders = orders.filter((o) => o.status === "ready");
 
-  // On first load, record existing order IDs so we don't announce all existing orders at once
+  // Load available speech voices and config
+  useEffect(() => {
+    const saved = loadVoiceConfig();
+    setVoiceConfig(saved);
+
+    const updateVoices = () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        const vList = window.speechSynthesis.getVoices();
+        setAvailableVoices(vList);
+      }
+    };
+
+    updateVoices();
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.onvoiceschanged = updateVoices;
+    }
+  }, []);
+
+  // On first load, record existing order IDs
   useEffect(() => {
     if (initialMountRef.current) {
       queuedOrders.forEach((o) => announcedRef.current.add(o.id));
@@ -153,14 +255,92 @@ function KitchenBoard() {
       if (!announcedRef.current.has(order.id)) {
         announcedRef.current.add(order.id);
         if (voiceEnabled) {
-          speakOrderAnnouncement(order);
+          speakOrderAnnouncement(order, voiceConfig);
           toast.info(`🔔 New Order Announcement: Token #${order.token}`, {
             description: order.lines.map((l) => `${l.qty}× ${l.name}`).join(", "),
           });
         }
       }
     });
-  }, [queuedOrders, voiceEnabled]);
+  }, [queuedOrders, voiceEnabled, voiceConfig]);
+
+  // Audio Recording Handlers
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          const updated = { ...voiceConfig, customAudioBase64: base64data, useCustomAudioFirst: true };
+          setVoiceConfig(updated);
+          saveVoiceConfig(updated);
+          toast.success("Voice recording saved! It will play when new orders arrive.");
+        };
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      toast.info("🎙️ Recording your voice... Speak your alert message now!");
+    } catch (err) {
+      toast.error("Microphone access denied or not supported in this browser.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("audio/")) {
+      toast.error("Please select a valid audio file (e.g. .mp3, .wav, .m4a).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      const updated = { ...voiceConfig, customAudioBase64: base64, useCustomAudioFirst: true };
+      setVoiceConfig(updated);
+      saveVoiceConfig(updated);
+      toast.success(`Audio file "${file.name}" uploaded and set as custom order alert!`);
+    };
+  };
+
+  const handleTestVoice = () => {
+    const dummyOrder: Order = {
+      id: "test-voice",
+      token: 105,
+      lines: [
+        { itemId: "m1", name: "Veg Momo (10 pcs)", price: 100, qty: 2 },
+        { itemId: "m2", name: "Milk Tea", price: 25, qty: 1 },
+      ],
+      total: 225,
+      payment: "wallet",
+      status: "queued",
+      placedAt: Date.now(),
+    };
+    speakOrderAnnouncement(dummyOrder, voiceConfig);
+    toast.success(`Testing voice with Token 105: 2 Veg Momo, and 1 Milk Tea`);
+  };
 
   // Role guard: Only Staff & Admin
   if (currentUser && currentUser.role === "student") {
@@ -194,28 +374,11 @@ function KitchenBoard() {
     }
   };
 
-  const handleTestVoice = () => {
-    const dummyOrder: Order = {
-      id: "test-voice",
-      token: 105,
-      lines: [
-        { itemId: "m1", name: "Veg Momo (10 pcs)", price: 100, qty: 2 },
-        { itemId: "m2", name: "Milk Tea", price: 25, qty: 1 },
-      ],
-      total: 225,
-      payment: "wallet",
-      status: "queued",
-      placedAt: Date.now(),
-    };
-    speakOrderAnnouncement(dummyOrder);
-    toast.success("Playing sample kitchen voice announcement: 'New order! Token 105: 2 Veg Momo, and 1 Milk Tea'");
-  };
-
   const soldOutCount = menu.filter((m) => !m.available || remaining(m) === 0).length;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 space-y-8">
-      {/* Header with Voice Notification Controls */}
+      {/* Header with Custom Voice Controls */}
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
@@ -234,7 +397,7 @@ function KitchenBoard() {
           </div>
         </div>
 
-        {/* Voice Announcement Toggle & Test Button */}
+        {/* Voice Announcement Toggle & Settings Button */}
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant={voiceEnabled ? "default" : "outline"}
@@ -252,18 +415,21 @@ function KitchenBoard() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setSettingsOpen(true)}
+            className="gap-1.5 border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-950/40"
+          >
+            <Sliders className="h-3.5 w-3.5" /> Customize Voice
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleTestVoice}
             className="gap-1.5"
-            title="Test the speech synthesis announcement"
+            title="Test current voice settings"
           >
             <Play className="h-3.5 w-3.5" /> Test Voice
           </Button>
-
-          <Link to="/planner">
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <Utensils className="h-4 w-4" /> Menu Planner
-            </Button>
-          </Link>
         </div>
       </header>
 
@@ -361,7 +527,7 @@ function KitchenBoard() {
                   next="ready"
                   action="✓ Mark Ready for Pickup"
                   actionVariant="default"
-                  onAnnounce={() => speakOrderAnnouncement(order)}
+                  onAnnounce={() => speakOrderAnnouncement(order, voiceConfig)}
                 />
               ))
             )}
@@ -401,6 +567,198 @@ function KitchenBoard() {
           </div>
         </section>
       </div>
+
+      {/* Custom Voice & Audio Recorder Dialog Modal */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+              <Sliders className="h-5 w-5 text-purple-600" /> Customize Kitchen Voice & Audio
+            </DialogTitle>
+            <DialogDescription>
+              Record your own voice, upload custom audio chimes, or customize speech pitch, speed, and accent.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Tabs defaultValue="speech" className="space-y-4 py-2">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="speech" className="gap-2">
+                <Volume2 className="h-4 w-4" /> Text-to-Speech Engine
+              </TabsTrigger>
+              <TabsTrigger value="recording" className="gap-2">
+                <Mic className="h-4 w-4" /> Record / Upload Audio
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Tab 1: Text-to-Speech Customization */}
+            <TabsContent value="speech" className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="voiceSelect">Select Voice / Accent</Label>
+                <Select
+                  value={voiceConfig.voiceURI}
+                  onValueChange={(val) => {
+                    const updated = { ...voiceConfig, voiceURI: val };
+                    setVoiceConfig(updated);
+                    saveVoiceConfig(updated);
+                  }}
+                >
+                  <SelectTrigger id="voiceSelect">
+                    <SelectValue placeholder="System Default Voice" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    <SelectItem value="">System Default Voice (Auto)</SelectItem>
+                    {availableVoices.map((v) => (
+                      <SelectItem key={v.voiceURI} value={v.voiceURI}>
+                        {v.name} ({v.lang})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="prefix">Announcement Greeting / Prefix</Label>
+                <Input
+                  id="prefix"
+                  value={voiceConfig.prefixPhrase}
+                  onChange={(e) => {
+                    const updated = { ...voiceConfig, prefixPhrase: e.target.value };
+                    setVoiceConfig(updated);
+                    saveVoiceConfig(updated);
+                  }}
+                  placeholder="e.g. New order! Token"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Preview: <em>"{voiceConfig.prefixPhrase} 105. 2 Veg Momo, and 1 Milk Tea."</em>
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span>Speed / Rate: {voiceConfig.rate}x</span>
+                  </div>
+                  <Slider
+                    min={0.5}
+                    max={1.8}
+                    step={0.05}
+                    value={[voiceConfig.rate]}
+                    onValueChange={([val]) => {
+                      if (val !== undefined) {
+                        const updated = { ...voiceConfig, rate: val };
+                        setVoiceConfig(updated);
+                        saveVoiceConfig(updated);
+                      }
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span>Pitch: {voiceConfig.pitch}x</span>
+                  </div>
+                  <Slider
+                    min={0.5}
+                    max={1.5}
+                    step={0.05}
+                    value={[voiceConfig.pitch]}
+                    onValueChange={([val]) => {
+                      if (val !== undefined) {
+                        const updated = { ...voiceConfig, pitch: val };
+                        setVoiceConfig(updated);
+                        saveVoiceConfig(updated);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Tab 2: Custom Voice Recording & Audio Upload */}
+            <TabsContent value="recording" className="space-y-4">
+              <div className="rounded-xl border p-4 bg-muted/30 space-y-3">
+                <h4 className="font-semibold text-sm">🎙️ Record Your Own Kitchen Alert Voice</h4>
+                <p className="text-xs text-muted-foreground">
+                  Record your own voice (e.g. <em>"Attention chef, new order incoming!"</em>) using your microphone.
+                </p>
+
+                <div className="flex items-center gap-3">
+                  {!isRecording ? (
+                    <Button onClick={startRecording} className="gap-2 bg-red-600 hover:bg-red-700 text-white">
+                      <Mic className="h-4 w-4" /> Start Recording
+                    </Button>
+                  ) : (
+                    <Button onClick={stopRecording} variant="destructive" className="gap-2 animate-pulse">
+                      <Square className="h-4 w-4" /> Stop & Save Recording
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border p-4 bg-muted/30 space-y-3">
+                <h4 className="font-semibold text-sm">📁 Or Upload Custom Audio File (.mp3 / .wav)</h4>
+                <p className="text-xs text-muted-foreground">
+                  Upload an audio bell, custom recorded voice, or kitchen chime file.
+                </p>
+                <Input type="file" accept="audio/*" onChange={handleFileUpload} />
+              </div>
+
+              {voiceConfig.customAudioBase64 && (
+                <div className="flex items-center justify-between rounded-xl border border-green-300 bg-green-50/70 p-3 text-xs dark:border-green-900 dark:bg-green-950/40">
+                  <div className="flex items-center gap-2 text-green-800 dark:text-green-300 font-medium">
+                    <CheckCircle2 className="h-4 w-4" /> Custom Voice / Audio is active
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const audio = new Audio(voiceConfig.customAudioBase64);
+                        audio.play();
+                      }}
+                      className="h-7 text-xs"
+                    >
+                      <Play className="h-3 w-3 mr-1" /> Play Clip
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const updated = { ...voiceConfig, customAudioBase64: undefined, useCustomAudioFirst: false };
+                        setVoiceConfig(updated);
+                        saveVoiceConfig(updated);
+                        toast.info("Custom audio clip removed.");
+                      }}
+                      className="h-7 text-xs text-destructive"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter className="flex justify-between sm:justify-between">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setVoiceConfig(DEFAULT_VOICE_CONFIG);
+                saveVoiceConfig(DEFAULT_VOICE_CONFIG);
+                toast.success("Voice settings reset to default.");
+              }}
+            >
+              Reset to Default
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={handleTestVoice}>
+                <Play className="h-3.5 w-3.5 mr-1" /> Test Voice
+              </Button>
+              <Button onClick={() => setSettingsOpen(false)}>Done</Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
