@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertCircle,
@@ -12,6 +12,9 @@ import {
   ShieldAlert,
   Sparkles,
   Utensils,
+  Volume2,
+  VolumeX,
+  Play,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -35,19 +38,129 @@ export const Route = createFileRoute("/kitchen")({
       { title: "Kitchen Staff Orders & Availability — College Kitchen" },
       {
         name: "description",
-        content: "Live incoming orders, ready queue, and raw material availability control for canteen staff.",
+        content: "Live incoming orders with voice announcements, ready queue, and raw material availability control for canteen staff.",
       },
       { property: "og:title", content: "Kitchen Staff Orders & Availability — College Kitchen" },
-      { property: "og:description", content: "Incoming orders, ready board, and sold-out controls for canteen staff." },
+      { property: "og:description", content: "Incoming orders, voice order announcer, and sold-out controls for canteen staff." },
     ],
   }),
   component: KitchenBoard,
 });
 
+// Sound chime generator using Web Audio API
+function playOrderChime() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+
+    const now = ctx.currentTime;
+    // Tone 1: 587 Hz (D5)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(587.33, now);
+    gain1.gain.setValueAtTime(0.3, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.3);
+
+    // Tone 2: 880 Hz (A5)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(880, now + 0.15);
+    gain2.gain.setValueAtTime(0.3, now + 0.15);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.15);
+    osc2.stop(now + 0.5);
+  } catch (e) {
+    /* ignore audio context restrictions */
+  }
+}
+
+// Text-to-speech announcer
+function speakOrderAnnouncement(order: Order) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+
+  try {
+    playOrderChime();
+
+    const itemsSummary = order.lines
+      .map((l) => `${l.qty} ${l.name}`)
+      .join(", and ");
+
+    const textToSpeak = `New order! Token ${order.token}. ${itemsSummary}.`;
+
+    // Cancel any previous speech to announce latest immediately
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.rate = 0.95; // slightly clear and natural
+    utterance.pitch = 1.05;
+    utterance.volume = 1.0;
+
+    // Try to find a clear English voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const englishVoice =
+      voices.find((v) => v.lang.startsWith("en") && (v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Samantha"))) ||
+      voices.find((v) => v.lang.startsWith("en"));
+    if (englishVoice) {
+      utterance.voice = englishVoice;
+    }
+
+    // Small delay after chime before speaking
+    setTimeout(() => {
+      window.speechSynthesis.speak(utterance);
+    }, 250);
+  } catch (err) {
+    console.error("Speech synthesis failed:", err);
+  }
+}
+
 function KitchenBoard() {
   const orders = useCanteen((s) => s.orders);
   const menu = useCanteen((s) => s.menu);
   const currentUser = useCanteen((s) => s.currentUser);
+
+  // Voice notification state (defaults to true)
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+
+  // Track orders that have already been announced to avoid duplicate voice alerts
+  const announcedRef = useRef<Set<string>>(new Set());
+  const initialMountRef = useRef(true);
+
+  const queuedOrders = orders.filter((o) => o.status === "queued" || o.status === "preparing");
+  const readyOrders = orders.filter((o) => o.status === "ready");
+
+  // On first load, record existing order IDs so we don't announce all existing orders at once
+  useEffect(() => {
+    if (initialMountRef.current) {
+      queuedOrders.forEach((o) => announcedRef.current.add(o.id));
+      initialMountRef.current = false;
+    }
+  }, []);
+
+  // Listen for newly arrived incoming orders and trigger voice speech
+  useEffect(() => {
+    if (initialMountRef.current) return;
+
+    queuedOrders.forEach((order) => {
+      if (!announcedRef.current.has(order.id)) {
+        announcedRef.current.add(order.id);
+        if (voiceEnabled) {
+          speakOrderAnnouncement(order);
+          toast.info(`🔔 New Order Announcement: Token #${order.token}`, {
+            description: order.lines.map((l) => `${l.qty}× ${l.name}`).join(", "),
+          });
+        }
+      }
+    });
+  }, [queuedOrders, voiceEnabled]);
 
   // Role guard: Only Staff & Admin
   if (currentUser && currentUser.role === "student") {
@@ -72,9 +185,6 @@ function KitchenBoard() {
     );
   }
 
-  const queuedOrders = orders.filter((o) => o.status === "queued" || o.status === "preparing");
-  const readyOrders = orders.filter((o) => o.status === "ready");
-
   const handleToggleSoldOut = (item: MenuItem, isAvailable: boolean) => {
     updateMenuItem(item.id, { available: isAvailable });
     if (isAvailable) {
@@ -84,37 +194,76 @@ function KitchenBoard() {
     }
   };
 
+  const handleTestVoice = () => {
+    const dummyOrder: Order = {
+      id: "test-voice",
+      token: 105,
+      lines: [
+        { itemId: "m1", name: "Veg Momo (10 pcs)", price: 100, qty: 2 },
+        { itemId: "m2", name: "Milk Tea", price: 25, qty: 1 },
+      ],
+      total: 225,
+      payment: "wallet",
+      status: "queued",
+      placedAt: Date.now(),
+    };
+    speakOrderAnnouncement(dummyOrder);
+    toast.success("Playing sample kitchen voice announcement: 'New order! Token 105: 2 Veg Momo, and 1 Milk Tea'");
+  };
+
   const soldOutCount = menu.filter((m) => !m.available || remaining(m) === 0).length;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 space-y-8">
-      {/* Header */}
+      {/* Header with Voice Notification Controls */}
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
             <ChefHat className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">Kitchen Order & Stock Board</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-bold">Kitchen Order & Stock Board</h1>
+              <Badge className={voiceEnabled ? "bg-green-600 text-white" : "bg-muted text-muted-foreground"}>
+                {voiceEnabled ? "🔊 Voice Alert ON" : "🔇 Voice Alert Muted"}
+              </Badge>
+            </div>
             <p className="text-sm text-muted-foreground">
               {queuedOrders.length} incoming orders · {readyOrders.length} ready for pickup · {soldOutCount} items sold out
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Voice Announcement Toggle & Test Button */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant={voiceEnabled ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setVoiceEnabled(!voiceEnabled);
+              toast(voiceEnabled ? "🔇 Kitchen Voice Alerts Muted" : "🔊 Kitchen Voice Alerts Enabled");
+            }}
+            className="gap-1.5"
+          >
+            {voiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            <span>{voiceEnabled ? "Voice Alerts: Active" : "Voice Alerts: Muted"}</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleTestVoice}
+            className="gap-1.5"
+            title="Test the speech synthesis announcement"
+          >
+            <Play className="h-3.5 w-3.5" /> Test Voice
+          </Button>
+
           <Link to="/planner">
             <Button variant="outline" size="sm" className="gap-1.5">
-              <Utensils className="h-4 w-4" /> Full Menu Planner
+              <Utensils className="h-4 w-4" /> Menu Planner
             </Button>
           </Link>
-          {currentUser?.role === "admin" && (
-            <Link to="/admin">
-              <Badge variant="outline" className="cursor-pointer border-purple-300 text-purple-700 hover:bg-purple-50">
-                🛡️ Admin View
-              </Badge>
-            </Link>
-          )}
         </div>
       </header>
 
@@ -202,7 +351,7 @@ function KitchenBoard() {
               <div className="py-16 text-center text-muted-foreground">
                 <Clock className="mx-auto mb-2 h-10 w-10 opacity-30" />
                 <p className="text-sm font-medium">No pending orders right now.</p>
-                <p className="text-xs">New orders placed by students will appear here in real-time.</p>
+                <p className="text-xs">New orders placed by students will be announced by voice and appear here.</p>
               </div>
             ) : (
               queuedOrders.map((order) => (
@@ -212,6 +361,7 @@ function KitchenBoard() {
                   next="ready"
                   action="✓ Mark Ready for Pickup"
                   actionVariant="default"
+                  onAnnounce={() => speakOrderAnnouncement(order)}
                 />
               ))
             )}
@@ -260,17 +410,32 @@ function OrderCard({
   next,
   action,
   actionVariant,
+  onAnnounce,
 }: {
   order: Order;
   next?: OrderStatus;
   action?: string;
   actionVariant?: "default" | "outline";
+  onAnnounce?: () => void;
 }) {
   return (
     <Card className="border shadow-sm transition-all hover:shadow-md">
       <CardContent className="space-y-3 pt-5">
         <div className="flex items-baseline justify-between border-b pb-2">
-          <span className="font-display text-3xl font-black text-primary">#{order.token}</span>
+          <div className="flex items-center gap-2">
+            <span className="font-display text-3xl font-black text-primary">#{order.token}</span>
+            {onAnnounce && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={onAnnounce}
+                title="Replay voice announcement"
+              >
+                <Volume2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
           <span className="text-xs text-muted-foreground">
             {new Date(order.placedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </span>
