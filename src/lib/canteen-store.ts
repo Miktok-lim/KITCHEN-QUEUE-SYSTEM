@@ -501,6 +501,36 @@ function emit() {
   listeners.forEach((l) => l());
 }
 
+export function mergeRecommendations(
+  serverRecs?: TomorrowRecommendation[],
+  localRecs?: TomorrowRecommendation[],
+): TomorrowRecommendation[] {
+  const map = new Map<string, TomorrowRecommendation>();
+  if (Array.isArray(serverRecs)) {
+    serverRecs.forEach((r) => {
+      if (r && r.id) map.set(r.id, r);
+    });
+  }
+  if (Array.isArray(localRecs)) {
+    localRecs.forEach((r) => {
+      if (r && r.id) {
+        const serverRec = map.get(r.id);
+        if (serverRec) {
+          map.set(r.id, {
+            ...serverRec,
+            status: r.status === "accepted" ? "accepted" : serverRec.status,
+            votes: Math.max(serverRec.votes, r.votes),
+            votedBy: Array.from(new Set([...serverRec.votedBy, ...r.votedBy])),
+          });
+        } else {
+          map.set(r.id, r);
+        }
+      }
+    });
+  }
+  return Array.from(map.values());
+}
+
 async function fetchServerState() {
   if (typeof window === "undefined") return;
   try {
@@ -509,21 +539,24 @@ async function fetchServerState() {
     const data = await res.json();
     if (data && data.ok && data.state) {
       const serverState = data.state;
+      const mergedRecs = mergeRecommendations(
+        serverState.recommendations,
+        state.recommendations,
+      );
+
       state = {
         ...state,
-        menu: serverState.menu,
-        orders: serverState.orders,
-        users: serverState.users,
-        students: serverState.students,
-        transactions: serverState.transactions,
-        reports: serverState.reports,
-        recommendations: Array.isArray(serverState.recommendations)
-          ? serverState.recommendations
-          : state.recommendations,
-        nextToken: serverState.nextToken,
-        menuDate: serverState.menuDate,
+        menu: Array.isArray(serverState.menu) ? serverState.menu : state.menu,
+        orders: Array.isArray(serverState.orders) ? serverState.orders : state.orders,
+        users: Array.isArray(serverState.users) ? serverState.users : state.users,
+        students: Array.isArray(serverState.students) ? serverState.students : state.students,
+        transactions: Array.isArray(serverState.transactions) ? serverState.transactions : state.transactions,
+        reports: Array.isArray(serverState.reports) ? serverState.reports : state.reports,
+        recommendations: mergedRecs,
+        nextToken: Math.max(state.nextToken, serverState.nextToken || 101),
+        menuDate: serverState.menuDate || state.menuDate,
         currentUser: state.currentUser
-          ? (serverState.users.find((u: User) => u.id === state.currentUser?.id) ??
+          ? (serverState.users?.find((u: User) => u.id === state.currentUser?.id) ??
             state.currentUser)
           : state.currentUser,
       };
@@ -548,20 +581,23 @@ async function sendServerAction(action: string, payload: any) {
       if (json.ok && json.data) {
         const serverState = json.data.state || (json.data.order ? json.data.state : json.data);
         if (serverState && Array.isArray(serverState.orders)) {
+          const mergedRecs = mergeRecommendations(
+            serverState.recommendations,
+            state.recommendations,
+          );
+
           state = {
             ...state,
-            menu: serverState.menu,
-            orders: serverState.orders,
-            users: serverState.users,
-            students: serverState.students,
-            transactions: serverState.transactions,
-            reports: serverState.reports,
-            recommendations: Array.isArray(serverState.recommendations)
-              ? serverState.recommendations
-              : state.recommendations,
-            nextToken: serverState.nextToken,
+            menu: Array.isArray(serverState.menu) ? serverState.menu : state.menu,
+            orders: Array.isArray(serverState.orders) ? serverState.orders : state.orders,
+            users: Array.isArray(serverState.users) ? serverState.users : state.users,
+            students: Array.isArray(serverState.students) ? serverState.students : state.students,
+            transactions: Array.isArray(serverState.transactions) ? serverState.transactions : state.transactions,
+            reports: Array.isArray(serverState.reports) ? serverState.reports : state.reports,
+            recommendations: mergedRecs,
+            nextToken: Math.max(state.nextToken, serverState.nextToken || 101),
             currentUser: state.currentUser
-              ? (serverState.users.find((u: User) => u.id === state.currentUser?.id) ??
+              ? (serverState.users?.find((u: User) => u.id === state.currentUser?.id) ??
                 state.currentUser)
               : state.currentUser,
           };
@@ -584,6 +620,30 @@ function startPolling() {
   }, 1200);
 }
 
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key === STORAGE_KEY && e.newValue) {
+      try {
+        const parsed = JSON.parse(e.newValue) as CanteenState;
+        if (parsed && Array.isArray(parsed.recommendations)) {
+          state = {
+            ...state,
+            menu: parsed.menu || state.menu,
+            orders: parsed.orders || state.orders,
+            reports: parsed.reports || state.reports,
+            recommendations: mergeRecommendations(parsed.recommendations, state.recommendations),
+            students: parsed.students || state.students,
+            transactions: parsed.transactions || state.transactions,
+            users: parsed.users || state.users,
+            nextToken: parsed.nextToken || state.nextToken,
+          };
+          emit();
+        }
+      } catch {}
+    }
+  });
+}
+
 function hydrate() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
@@ -603,9 +663,10 @@ function hydrate() {
         state = {
           ...parsed,
           reports: Array.isArray(parsed.reports) ? parsed.reports : seedReports(),
-          recommendations: Array.isArray(parsed.recommendations)
-            ? parsed.recommendations
-            : seedTomorrowRecommendations(),
+          recommendations: mergeRecommendations(
+            parsed.recommendations,
+            seedTomorrowRecommendations(),
+          ),
           currentUser: state.currentUser ?? parsed.currentUser ?? parsed.users[0] ?? null,
         };
       }
@@ -1079,8 +1140,9 @@ export function submitTomorrowRecommendation(input: SubmitTomorrowRecommendation
   const price = Math.max(10, Number(input.suggestedPrice) || 80);
   const image = input.image?.trim() || getDishImage(input.dishName.trim(), input.category);
 
+  const recId = `rec-${uid()}`;
   const recommendation: TomorrowRecommendation = {
-    id: `rec-${uid()}`,
+    id: recId,
     studentId: state.currentUser.id,
     studentName: state.currentUser.name,
     studentProgram: state.currentUser.program,
@@ -1099,11 +1161,12 @@ export function submitTomorrowRecommendation(input: SubmitTomorrowRecommendation
 
   setState((s) => ({
     ...s,
-    recommendations: [recommendation, ...s.recommendations],
+    recommendations: [recommendation, ...s.recommendations.filter((r) => r.id !== recId)],
   }));
 
   sendServerAction("submitTomorrowRecommendation", {
     ...input,
+    id: recId,
     studentId: state.currentUser.id,
     studentName: state.currentUser.name,
     studentProgram: state.currentUser.program,

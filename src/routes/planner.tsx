@@ -70,6 +70,10 @@ function Planner() {
   const [category, setCategory] = useState<MealCategory>("Lunch");
   const [veg, setVeg] = useState(true);
 
+  // Recommendations filtering and sorting
+  const [recFilter, setRecFilter] = useState<"all" | "voting" | "accepted">("all");
+  const [recSort, setRecSort] = useState<"top" | "newest">("top");
+
   // Role guard: Only Staff & Admin
   if (currentUser && currentUser.role === "student") {
     return (
@@ -149,7 +153,16 @@ function Planner() {
     toast.success(`Accepted "${rec.dishName}"! Added to active canteen menu with 50 portions.`);
   };
 
-  const sortedRecs = [...recommendations].sort((a, b) => b.votes - a.votes);
+  const filteredRecs = recommendations
+    .filter((r) => {
+      if (recFilter === "voting") return r.status === "voting";
+      if (recFilter === "accepted") return r.status === "accepted";
+      return true;
+    })
+    .sort((a, b) => {
+      if (recSort === "newest") return (b.createdAt || 0) - (a.createdAt || 0);
+      return b.votes - a.votes;
+    });
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -190,7 +203,7 @@ function Planner() {
       {/* Tomorrow's Student Demand & Recommendations Panel */}
       <Card className="mb-8 border-2 border-primary/30 bg-primary/5 shadow-sm">
         <CardHeader>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="flex items-center gap-2">
                 <CardTitle className="text-xl">
@@ -203,19 +216,43 @@ function Planner() {
                 to Menu" to automatically create it.
               </CardDescription>
             </div>
-            <span className="text-xs font-semibold text-muted-foreground">
-              {recommendations.length} items suggested
-            </span>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={recFilter} onValueChange={(v: any) => setRecFilter(v)}>
+                <SelectTrigger className="h-8 w-32 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All ({recommendations.length})</SelectItem>
+                  <SelectItem value="voting">
+                    Voting ({recommendations.filter((r) => r.status === "voting").length})
+                  </SelectItem>
+                  <SelectItem value="accepted">
+                    Accepted ({recommendations.filter((r) => r.status === "accepted").length})
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={recSort} onValueChange={(v: any) => setRecSort(v)}>
+                <SelectTrigger className="h-8 w-32 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="top">🔥 Top Voted</SelectItem>
+                  <SelectItem value="newest">🕒 Newest First</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {sortedRecs.length === 0 ? (
+          {filteredRecs.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No student recommendations logged yet for tomorrow.
+              No student recommendations found for the selected filter.
             </p>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
-              {sortedRecs.map((rec) => {
+              {filteredRecs.map((rec) => {
                 const isAccepted = rec.status === "accepted";
                 return (
                   <div
@@ -244,8 +281,8 @@ function Planner() {
                             {money(rec.suggestedPrice)}
                           </span>
                         </div>
-                        <p className="text-[11px] text-muted-foreground">
-                          {rec.category} · by {rec.studentName}
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {rec.category} · by {rec.studentName} {rec.studentProgram ? `(${rec.studentProgram})` : ""}
                         </p>
                         <p className="text-[11px] font-semibold text-amber-600 mt-0.5">
                           🔥 {rec.votes} student votes

@@ -168,7 +168,8 @@ function getNavItems(user?: User | null): NavItem[] {
     case "staff":
       return [
         { to: "/kitchen", label: "Kitchen Board" },
-        { to: "/planner", label: "Menu Planner" },
+        { to: "/planner", label: "Menu Planner & Demand" },
+        { to: "/", label: "Tomorrow Wishlist & Menu", exact: true },
       ];
     case "admin":
       return [

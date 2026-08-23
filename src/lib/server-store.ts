@@ -580,6 +580,7 @@ export function handleAction(
 
     case "submitTomorrowRecommendation": {
       const {
+        id: customId,
         studentId,
         studentName,
         studentProgram,
@@ -590,8 +591,9 @@ export function handleAction(
         reason,
         image,
       } = payload;
+      const recId = customId || `rec-${uid()}`;
       const recommendation: TomorrowRecommendation = {
-        id: `rec-${uid()}`,
+        id: recId,
         studentId,
         studentName,
         studentProgram,
@@ -607,7 +609,12 @@ export function handleAction(
         forDate: tomorrowKey(),
         createdAt: Date.now(),
       };
-      s.recommendations = [recommendation, ...s.recommendations];
+      const existingIdx = s.recommendations.findIndex((r) => r.id === recId);
+      if (existingIdx >= 0) {
+        s.recommendations[existingIdx] = recommendation;
+      } else {
+        s.recommendations = [recommendation, ...s.recommendations];
+      }
       return { ok: true, data: { recommendation, state: s } };
     }
 

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import {
   AlertCircle,
   Ban,
+  Calendar,
   CheckCircle2,
   ChefHat,
   Clock,
@@ -12,12 +13,14 @@ import {
   PackageCheck,
   PackageX,
   Play,
+  Plus,
   RotateCcw,
   Settings2,
   ShieldAlert,
   Sliders,
   Sparkles,
   Square,
+  ThumbsUp,
   Trash2,
   Upload,
   Utensils,
@@ -49,14 +52,18 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  addMenuItem,
+  getDishImage,
   money,
   remaining,
   setOrderStatus,
+  setRecommendationStatus,
   updateMenuItem,
   useCanteen,
   type MenuItem,
   type Order,
   type OrderStatus,
+  type TomorrowRecommendation,
 } from "@/lib/canteen-store";
 
 export const Route = createFileRoute("/kitchen")({
@@ -210,6 +217,7 @@ async function speakOrderAnnouncement(order: Order, config: VoiceConfig) {
 function KitchenBoard() {
   const orders = useCanteen((s) => s.orders);
   const menu = useCanteen((s) => s.menu);
+  const recommendations = useCanteen((s) => s.recommendations);
   const currentUser = useCanteen((s) => s.currentUser);
 
   // Voice notification state
@@ -222,6 +230,11 @@ function KitchenBoard() {
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+
+  // Recommendation filtering and sorting for kitchen staff
+  const [recFilter, setRecFilter] = useState<"all" | "voting" | "accepted">("all");
+  const [recSort, setRecSort] = useState<"top" | "newest">("top");
+  const [showAllRecs, setShowAllRecs] = useState(false);
 
   // Track orders that have already been announced to avoid duplicate voice alerts
   const announcedRef = useRef<Set<string>>(new Set());
@@ -248,33 +261,26 @@ function KitchenBoard() {
     }
   }, []);
 
-  // On first load, record existing order IDs
+  // Play voice announcements when new orders arrive
   useEffect(() => {
+    if (!voiceEnabled) return;
+
     if (initialMountRef.current) {
       queuedOrders.forEach((o) => announcedRef.current.add(o.id));
       initialMountRef.current = false;
+      return;
     }
-  }, []);
 
-  // Listen for newly arrived incoming orders and trigger voice speech
-  useEffect(() => {
-    if (initialMountRef.current) return;
-
-    queuedOrders.forEach((order) => {
-      if (!announcedRef.current.has(order.id)) {
+    const unannounced = queuedOrders.filter((o) => !announcedRef.current.has(o.id));
+    if (unannounced.length > 0) {
+      unannounced.forEach((order) => {
         announcedRef.current.add(order.id);
-        if (voiceEnabled) {
-          speakOrderAnnouncement(order, voiceConfig);
-          toast.info(`🔔 New Order Announcement: Token #${order.token}`, {
-            description: order.lines.map((l) => `${l.qty}× ${l.name}`).join(", "),
-          });
-        }
-      }
-    });
+        speakOrderAnnouncement(order, voiceConfig);
+      });
+    }
   }, [queuedOrders, voiceEnabled, voiceConfig]);
 
-  // Audio Recording Handlers
-  const startRecording = async () => {
+  const handleStartRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
@@ -282,20 +288,18 @@ function KitchenBoard() {
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = () => {
-          const base64data = reader.result as string;
-          const updated = {
-            ...voiceConfig,
-            customAudioBase64: base64data,
-            useCustomAudioFirst: true,
-          };
+          const base64 = reader.result as string;
+          const updated = { ...voiceConfig, customAudioBase64: base64, useCustomAudioFirst: true };
           setVoiceConfig(updated);
           saveVoiceConfig(updated);
           toast.success("Voice recording saved! It will play when new orders arrive.");
@@ -355,6 +359,29 @@ function KitchenBoard() {
     toast.success(`Testing voice with Token 105: 2 Veg Momo, and 1 Milk Tea`);
   };
 
+  const handleAcceptRecommendation = (rec: TomorrowRecommendation) => {
+    const existing = menu.find((m) => m.name.toLowerCase() === rec.dishName.toLowerCase());
+    if (existing) {
+      setRecommendationStatus(rec.id, "accepted");
+      toast.info(`"${rec.dishName}" is already on menu. Marked recommendation as Accepted!`);
+      return;
+    }
+
+    addMenuItem({
+      name: rec.dishName,
+      description: `Student Recommended (${rec.votes} votes) · Prepared fresh`,
+      price: rec.suggestedPrice,
+      quantity: 50,
+      category: rec.category,
+      available: true,
+      veg: rec.veg,
+      image: rec.image || getDishImage(rec.dishName, rec.category),
+    });
+
+    setRecommendationStatus(rec.id, "accepted");
+    toast.success(`Accepted "${rec.dishName}"! Added to active menu with 50 portions.`);
+  };
+
   // Role guard: Only Staff & Admin
   if (currentUser && currentUser.role === "student") {
     return (
@@ -390,6 +417,19 @@ function KitchenBoard() {
 
   const soldOutCount = menu.filter((m) => !m.available || remaining(m) === 0).length;
 
+  const filteredRecs = recommendations
+    .filter((r) => {
+      if (recFilter === "voting") return r.status === "voting";
+      if (recFilter === "accepted") return r.status === "accepted";
+      return true;
+    })
+    .sort((a, b) => {
+      if (recSort === "newest") return (b.createdAt || 0) - (a.createdAt || 0);
+      return b.votes - a.votes;
+    });
+
+  const displayedRecs = showAllRecs ? filteredRecs : filteredRecs.slice(0, 6);
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 space-y-8">
       {/* Header with Custom Voice Controls */}
@@ -411,13 +451,19 @@ function KitchenBoard() {
             </div>
             <p className="text-sm text-muted-foreground">
               {queuedOrders.length} incoming orders · {readyOrders.length} ready for pickup ·{" "}
-              {soldOutCount} items sold out
+              {soldOutCount} items sold out · {recommendations.length} tomorrow wishlist suggestions
             </p>
           </div>
         </div>
 
-        {/* Voice Announcement Toggle & Settings Button */}
+        {/* Voice Announcement Toggle & Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          <Link to="/planner">
+            <Button variant="outline" size="sm" className="gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-50">
+              <Utensils className="h-4 w-4" /> Menu Planner
+            </Button>
+          </Link>
+
           <Button
             variant={voiceEnabled ? "default" : "outline"}
             size="sm"
@@ -430,7 +476,7 @@ function KitchenBoard() {
             className="gap-1.5"
           >
             {voiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-            <span>{voiceEnabled ? "Voice Alerts: Active" : "Voice Alerts: Muted"}</span>
+            <span>{voiceEnabled ? "Voice: Active" : "Voice: Muted"}</span>
           </Button>
 
           <Button
@@ -453,6 +499,161 @@ function KitchenBoard() {
           </Button>
         </div>
       </header>
+
+      {/* Tomorrow's Student Recommendations & Demand Highlight for Staff */}
+      <section className="rounded-2xl border-2 border-primary/30 bg-gradient-to-r from-primary/5 via-accent/10 to-primary/5 p-5 shadow-sm">
+        <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-bold text-foreground">
+                Tomorrow&apos;s Student Recommendations & Demand
+              </h2>
+              <Badge className="bg-primary text-primary-foreground text-xs font-semibold">
+                {recommendations.length} Total Suggestions
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Review what dishes students voted to order for tomorrow. Click &ldquo;Accept &amp; Add to Menu&rdquo; to prepare any dish.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Filter */}
+            <Select value={recFilter} onValueChange={(v: any) => setRecFilter(v)}>
+              <SelectTrigger className="h-8 w-32 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All ({recommendations.length})</SelectItem>
+                <SelectItem value="voting">
+                  Voting ({recommendations.filter((r) => r.status === "voting").length})
+                </SelectItem>
+                <SelectItem value="accepted">
+                  Accepted ({recommendations.filter((r) => r.status === "accepted").length})
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Sort */}
+            <Select value={recSort} onValueChange={(v: any) => setRecSort(v)}>
+              <SelectTrigger className="h-8 w-32 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="top">🔥 Top Voted</SelectItem>
+                <SelectItem value="newest">🕒 Newest First</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Link to="/planner">
+              <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs">
+                <Sparkles className="h-3.5 w-3.5 text-primary" /> Full Menu Planner
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {filteredRecs.length === 0 ? (
+          <div className="rounded-xl border border-dashed bg-card/60 p-6 text-center text-muted-foreground text-xs">
+            No student dish recommendations found for the selected filter.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {displayedRecs.map((rec) => {
+                const isAccepted = rec.status === "accepted";
+                return (
+                  <div
+                    key={rec.id}
+                    className="flex flex-col justify-between rounded-xl border bg-card p-3.5 shadow-xs transition-all hover:shadow-sm"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-lg bg-muted border">
+                          <img
+                            src={rec.image || getDishImage(rec.dishName, rec.category)}
+                            alt={rec.dishName}
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src =
+                                "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=500&auto=format&fit=crop&q=80";
+                            }}
+                          />
+                          <span
+                            className={`absolute top-1 right-1 size-2 rounded-full border border-white ${rec.veg ? "bg-green-600" : "bg-red-600"}`}
+                            title={rec.veg ? "Vegetarian" : "Non-vegetarian"}
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <h4 className="font-bold text-sm text-foreground truncate">
+                              {rec.dishName}
+                            </h4>
+                            <span className="font-bold text-xs text-primary shrink-0">
+                              {money(rec.suggestedPrice)}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {rec.category} · by {rec.studentName} {rec.studentProgram ? `(${rec.studentProgram})` : ""}
+                          </p>
+                          <p className="text-[11px] font-semibold text-amber-600 mt-0.5">
+                            🔥 {rec.votes} student votes
+                          </p>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded-md italic line-clamp-2">
+                        &ldquo;{rec.reason}&rdquo;
+                      </p>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between border-t pt-2.5">
+                      {isAccepted ? (
+                        <Badge className="bg-green-600 text-white text-[10px] font-semibold">
+                          <CheckCircle2 className="mr-1 h-3 w-3 inline" /> Accepted for Menu
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                          🗳️ Student Poll
+                        </Badge>
+                      )}
+
+                      {!isAccepted ? (
+                        <Button
+                          size="sm"
+                          onClick={() => handleAcceptRecommendation(rec)}
+                          className="h-7 text-xs gap-1 bg-primary text-primary-foreground shadow-xs"
+                        >
+                          <Plus className="h-3 w-3" /> Accept &amp; Add
+                        </Button>
+                      ) : (
+                        <span className="text-[11px] text-green-700 font-medium">Ready in Menu</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {filteredRecs.length > 6 && (
+              <div className="text-center pt-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAllRecs(!showAllRecs)}
+                  className="text-xs text-primary hover:bg-primary/10"
+                >
+                  {showAllRecs
+                    ? "Show Top 6 Only"
+                    : `View All ${filteredRecs.length} Student Recommendations`}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
 
       {/* Raw Material & Sold Out Fast Controls Section */}
       <section className="rounded-2xl border border-amber-200/80 bg-amber-50/30 p-5 dark:border-amber-900/50 dark:bg-amber-950/20 shadow-sm">
@@ -720,7 +921,7 @@ function KitchenBoard() {
                 <div className="flex items-center gap-3">
                   {!isRecording ? (
                     <Button
-                      onClick={startRecording}
+                      onClick={handleStartRecording}
                       className="gap-2 bg-red-600 hover:bg-red-700 text-white"
                     >
                       <Mic className="h-4 w-4" /> Start Recording
