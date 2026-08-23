@@ -16,10 +16,14 @@ export const Route = createFileRoute("/wallet")({
       { title: "Student Meal Plan — College Kitchen" },
       {
         name: "description",
-        content: "Check a student's prepaid meal plan balance, top it up at the college office and review canteen spending.",
+        content:
+          "Check a student's prepaid meal plan balance, top it up at the college office and review canteen spending.",
       },
       { property: "og:title", content: "Student Meal Plan — College Kitchen" },
-      { property: "og:description", content: "Check and top up prepaid student meal plan balances." },
+      {
+        property: "og:description",
+        content: "Check and top up prepaid student meal plan balances.",
+      },
     ],
   }),
   component: WalletPage,
@@ -42,7 +46,8 @@ function WalletPage() {
         </div>
         <h1 className="text-2xl font-bold">Meal Plan Top-Up Counter</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Top-ups are performed by the campus administration office. You can track your balance and spending history in your <strong>Student Dashboard</strong>.
+          Top-ups are performed by the campus administration office. You can track your balance and
+          spending history in your <strong>Student Dashboard</strong>.
         </p>
         <div className="mt-6 flex justify-center gap-3">
           <Link to="/dashboard">
@@ -89,7 +94,10 @@ function WalletPage() {
 
         {currentUser?.role === "admin" && (
           <Link to="/admin">
-            <Badge variant="outline" className="cursor-pointer border-purple-300 text-purple-700 hover:bg-purple-50">
+            <Badge
+              variant="outline"
+              className="cursor-pointer border-purple-300 text-purple-700 hover:bg-purple-50"
+            >
               🛡️ Admin Control Center
             </Badge>
           </Link>
@@ -125,18 +133,25 @@ function WalletPage() {
             {!student ? (
               <div className="py-16 text-center text-muted-foreground">
                 <GraduationCap className="mx-auto mb-2 h-10 w-10 opacity-30" />
-                <p className="text-sm">Select a student from the list to view their meal plan and top-up credit.</p>
+                <p className="text-sm">
+                  Select a student from the list to view their meal plan and top-up credit.
+                </p>
               </div>
             ) : (
               <div className="space-y-6">
                 <div>
                   <h2 className="text-2xl font-bold text-foreground">{student.name}</h2>
                   <p className="text-sm text-muted-foreground">
-                    Student ID: <span className="font-semibold text-foreground">{student.id}</span> · {student.program}
+                    Student ID: <span className="font-semibold text-foreground">{student.id}</span>{" "}
+                    · {student.program}
                   </p>
                   <div className="mt-4 rounded-xl bg-primary/5 p-4 border border-primary/20">
-                    <p className="text-xs font-medium text-muted-foreground uppercase">Current Meal Plan Balance</p>
-                    <p className="font-display text-4xl font-extrabold text-primary">{money(student.balance)}</p>
+                    <p className="text-xs font-medium text-muted-foreground uppercase">
+                      Current Meal Plan Balance
+                    </p>
+                    <p className="font-display text-4xl font-extrabold text-primary">
+                      {money(student.balance)}
+                    </p>
                   </div>
                 </div>
 
@@ -156,7 +171,12 @@ function WalletPage() {
                     Confirm Top-Up
                   </Button>
                   {[200, 500, 1000].map((v) => (
-                    <Button key={v} variant="outline" size="sm" onClick={() => setAmount(String(v))}>
+                    <Button
+                      key={v}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAmount(String(v))}
+                    >
                       +{money(v)}
                     </Button>
                   ))}
@@ -167,7 +187,9 @@ function WalletPage() {
                     Spending & Recharge Ledger
                   </h3>
                   {history.length === 0 ? (
-                    <p className="py-4 text-sm text-muted-foreground">No meal plan activity on this card yet.</p>
+                    <p className="py-4 text-sm text-muted-foreground">
+                      No meal plan activity on this card yet.
+                    </p>
                   ) : (
                     <div className="rounded-lg border divide-y">
                       {history.slice(0, 12).map((t) => (
@@ -183,7 +205,13 @@ function WalletPage() {
                               })}
                             </p>
                           </div>
-                          <span className={t.amount < 0 ? "text-muted-foreground font-medium" : "font-bold text-green-600"}>
+                          <span
+                            className={
+                              t.amount < 0
+                                ? "text-muted-foreground font-medium"
+                                : "font-bold text-green-600"
+                            }
+                          >
                             {t.amount < 0 ? "−" : "+"}
                             {money(Math.abs(t.amount))}
                           </span>

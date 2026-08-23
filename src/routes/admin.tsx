@@ -5,6 +5,7 @@ import {
   AlertCircle,
   AlertTriangle,
   BarChart3,
+  Calendar,
   CheckCircle2,
   ChefHat,
   Filter,
@@ -25,17 +26,40 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   addUser,
   deleteFoodReport,
+  deleteTomorrowRecommendation,
+  getDishImage,
   money,
   removeUser,
   resolveFoodReport,
@@ -55,7 +79,8 @@ export const Route = createFileRoute("/admin")({
       { title: "Admin Management & Food Reports — College Kitchen" },
       {
         name: "description",
-        content: "Campus Administrator control panel: Add and remove users, view and resolve student food quality reports, and oversee canteen operations.",
+        content:
+          "Campus Administrator control panel: Add and remove users, view and resolve student food quality reports, and oversee canteen operations.",
       },
     ],
   }),
@@ -66,6 +91,7 @@ function AdminPage() {
   const currentUser = useCanteen((s) => s.currentUser);
   const users = useCanteen((s) => s.users);
   const reports = useCanteen((s) => s.reports);
+  const recommendations = useCanteen((s) => s.recommendations);
   const menu = useCanteen((s) => s.menu);
   const orders = useCanteen((s) => s.orders);
 
@@ -96,7 +122,8 @@ function AdminPage() {
         </div>
         <h1 className="text-2xl font-bold">Access Restricted</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Only authorized <strong>Campus Administrators</strong> can access user management and food inspection reports.
+          Only authorized <strong>Campus Administrators</strong> can access user management and food
+          inspection reports.
         </p>
         <div className="mt-6 flex justify-center gap-3">
           <Link to="/login">
@@ -226,13 +253,16 @@ function AdminPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Users</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Total Users
+                </p>
                 <p className="font-display mt-1 text-3xl font-bold">{users.length}</p>
               </div>
               <Users className="h-8 w-8 text-purple-500/50" />
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              {users.filter((u) => u.role === "student").length} Students · {users.filter((u) => u.role === "staff").length} Staff
+              {users.filter((u) => u.role === "student").length} Students ·{" "}
+              {users.filter((u) => u.role === "staff").length} Staff
             </p>
           </CardContent>
         </Card>
@@ -241,12 +271,18 @@ function AdminPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pending Complaints</p>
-                <p className="font-display mt-1 text-3xl font-bold text-red-600">{pendingReportsCount}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Pending Complaints
+                </p>
+                <p className="font-display mt-1 text-3xl font-bold text-red-600">
+                  {pendingReportsCount}
+                </p>
               </div>
               <AlertTriangle className="h-8 w-8 text-red-500/50" />
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">{reports.length} Total food feedback logged</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {reports.length} Total food feedback logged
+            </p>
           </CardContent>
         </Card>
 
@@ -254,7 +290,9 @@ function AdminPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Avg Food Rating</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Avg Food Rating
+                </p>
                 <div className="mt-1 flex items-baseline gap-1">
                   <p className="font-display text-3xl font-bold">{avgFoodRating}</p>
                   <span className="text-sm text-muted-foreground">/ 5.0</span>
@@ -270,30 +308,40 @@ function AdminPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Today's Sales</p>
-                <p className="font-display mt-1 text-3xl font-bold text-green-600">{money(totalRevenue)}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Today's Sales
+                </p>
+                <p className="font-display mt-1 text-3xl font-bold text-green-600">
+                  {money(totalRevenue)}
+                </p>
               </div>
               <TrendingUp className="h-8 w-8 text-green-500/50" />
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">{orders.length} total orders processed</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {orders.length} total orders processed
+            </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Main Admin Tabs */}
       <Tabs defaultValue="users" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 rounded-xl p-1">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 rounded-xl p-1">
           <TabsTrigger value="users" className="gap-2">
             <Users className="h-4 w-4" />
-            <span>User Management ({users.length})</span>
+            <span>Users ({users.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="tomorrow-wishlist" className="gap-2">
+            <Calendar className="h-4 w-4" />
+            <span>Tomorrow Wishlist ({recommendations.length})</span>
           </TabsTrigger>
           <TabsTrigger value="food-reports" className="gap-2">
             <AlertTriangle className="h-4 w-4" />
-            <span>Food Reports & Complaints ({reports.length})</span>
+            <span>Reports ({reports.length})</span>
           </TabsTrigger>
           <TabsTrigger value="canteen-analytics" className="gap-2">
             <BarChart3 className="h-4 w-4" />
-            <span>Canteen Sales & Portions</span>
+            <span>Sales & Analytics</span>
           </TabsTrigger>
         </TabsList>
 
@@ -304,11 +352,15 @@ function AdminPage() {
               <div>
                 <CardTitle>Campus User Authorization</CardTitle>
                 <CardDescription>
-                  Full administrative authority to add, remove, and manage Student, Staff, and Admin privileges.
+                  Full administrative authority to add, remove, and manage Student, Staff, and Admin
+                  privileges.
                 </CardDescription>
               </div>
 
-              <Button onClick={() => setAddUserOpen(true)} className="gap-2 bg-purple-600 hover:bg-purple-700">
+              <Button
+                onClick={() => setAddUserOpen(true)}
+                className="gap-2 bg-purple-600 hover:bg-purple-700"
+              >
                 <UserPlus className="h-4 w-4" /> Add New User
               </Button>
             </CardHeader>
@@ -331,9 +383,15 @@ function AdminPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Roles ({users.length})</SelectItem>
-                    <SelectItem value="student">Students ({users.filter((u) => u.role === "student").length})</SelectItem>
-                    <SelectItem value="staff">Staff ({users.filter((u) => u.role === "staff").length})</SelectItem>
-                    <SelectItem value="admin">Admins ({users.filter((u) => u.role === "admin").length})</SelectItem>
+                    <SelectItem value="student">
+                      Students ({users.filter((u) => u.role === "student").length})
+                    </SelectItem>
+                    <SelectItem value="staff">
+                      Staff ({users.filter((u) => u.role === "staff").length})
+                    </SelectItem>
+                    <SelectItem value="admin">
+                      Admins ({users.filter((u) => u.role === "admin").length})
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -361,7 +419,9 @@ function AdminPage() {
                     ) : (
                       filteredUsers.map((u) => (
                         <tr key={u.id} className="hover:bg-muted/30">
-                          <td className="px-4 py-3 font-mono font-semibold text-foreground">{u.id}</td>
+                          <td className="px-4 py-3 font-mono font-semibold text-foreground">
+                            {u.id}
+                          </td>
                           <td className="px-4 py-3 font-medium text-foreground">
                             {u.name}
                             {u.id === currentUser.id && (
@@ -375,12 +435,18 @@ function AdminPage() {
                               <Badge className="bg-purple-600 text-white">Admin</Badge>
                             )}
                             {u.role === "staff" && (
-                              <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                              <Badge
+                                variant="secondary"
+                                className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                              >
                                 Staff (Kitchen)
                               </Badge>
                             )}
                             {u.role === "student" && (
-                              <Badge variant="outline" className="border-blue-300 text-blue-700 dark:text-blue-300">
+                              <Badge
+                                variant="outline"
+                                className="border-blue-300 text-blue-700 dark:text-blue-300"
+                              >
                                 Student
                               </Badge>
                             )}
@@ -390,7 +456,9 @@ function AdminPage() {
                           </td>
                           <td className="px-4 py-3">
                             {u.role === "student" && u.balance !== undefined ? (
-                              <span className="font-semibold text-foreground">{money(u.balance)}</span>
+                              <span className="font-semibold text-foreground">
+                                {money(u.balance)}
+                              </span>
                             ) : (
                               <span className="text-muted-foreground text-xs">N/A</span>
                             )}
@@ -424,7 +492,8 @@ function AdminPage() {
               <div>
                 <CardTitle>Student Food Reports & Complaints</CardTitle>
                 <CardDescription>
-                  Review food temperature, taste, portion, or hygiene issues reported by students and record official resolutions.
+                  Review food temperature, taste, portion, or hygiene issues reported by students
+                  and record official resolutions.
                 </CardDescription>
               </div>
 
@@ -435,9 +504,15 @@ function AdminPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="pending">Pending ({reports.filter((r) => r.status === "pending").length})</SelectItem>
-                    <SelectItem value="investigating">Investigating ({reports.filter((r) => r.status === "investigating").length})</SelectItem>
-                    <SelectItem value="resolved">Resolved ({reports.filter((r) => r.status === "resolved").length})</SelectItem>
+                    <SelectItem value="pending">
+                      Pending ({reports.filter((r) => r.status === "pending").length})
+                    </SelectItem>
+                    <SelectItem value="investigating">
+                      Investigating ({reports.filter((r) => r.status === "investigating").length})
+                    </SelectItem>
+                    <SelectItem value="resolved">
+                      Resolved ({reports.filter((r) => r.status === "resolved").length})
+                    </SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -473,14 +548,16 @@ function AdminPage() {
                         report.status === "pending"
                           ? "border-amber-400/60 bg-amber-50/20"
                           : report.status === "investigating"
-                          ? "border-blue-400/60 bg-blue-50/20"
-                          : "border-border bg-card"
+                            ? "border-blue-400/60 bg-blue-50/20"
+                            : "border-border bg-card"
                       }`}
                     >
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="font-bold text-foreground">{report.foodItemName}</h3>
-                          {report.token && <Badge variant="outline">Order Token #{report.token}</Badge>}
+                          {report.token && (
+                            <Badge variant="outline">Order Token #{report.token}</Badge>
+                          )}
                           <Badge variant="secondary">{report.category}</Badge>
                           <span className="text-xs text-muted-foreground">
                             by <strong>{report.studentName}</strong> ({report.studentId})
@@ -499,9 +576,7 @@ function AdminPage() {
                             </Badge>
                           )}
                           {report.status === "resolved" && (
-                            <Badge className="bg-green-600 text-white">
-                              ✓ Resolved
-                            </Badge>
+                            <Badge className="bg-green-600 text-white">✓ Resolved</Badge>
                           )}
                         </div>
                       </div>
@@ -515,7 +590,13 @@ function AdminPage() {
                           />
                         ))}
                         <span className="ml-2 text-xs text-muted-foreground">
-                          Logged: {new Date(report.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          Logged:{" "}
+                          {new Date(report.createdAt).toLocaleString([], {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </span>
                       </div>
 
@@ -530,7 +611,9 @@ function AdminPage() {
                           <p className="font-semibold text-green-800 dark:text-green-300">
                             🛡️ Official Resolution Note:
                           </p>
-                          <p className="mt-1 text-green-900 dark:text-green-200">{report.adminResponse}</p>
+                          <p className="mt-1 text-green-900 dark:text-green-200">
+                            {report.adminResponse}
+                          </p>
                         </div>
                       )}
 
@@ -567,6 +650,109 @@ function AdminPage() {
           </Card>
         </TabsContent>
 
+        {/* Tab: Tomorrow's Student Wishlist */}
+        <TabsContent value="tomorrow-wishlist" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle>Tomorrow's Menu Student Wishlist & Votes</CardTitle>
+                <CardDescription>
+                  Review dishes recommended and voted on by students for tomorrow's canteen orders.
+                </CardDescription>
+              </div>
+              <Badge variant="outline" className="text-xs">
+                {recommendations.length} Suggestions
+              </Badge>
+            </CardHeader>
+            <CardContent>
+              {recommendations.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  <Calendar className="mx-auto mb-2 h-10 w-10 text-muted-foreground/60" />
+                  <p className="font-semibold text-foreground">No student recommendations yet</p>
+                  <p className="text-xs">Students haven't submitted any dishes for tomorrow.</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {recommendations.map((rec) => (
+                    <div
+                      key={rec.id}
+                      className="rounded-xl border bg-card p-4 space-y-3 flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted border">
+                            <img
+                              src={rec.image || getDishImage(rec.dishName, rec.category)}
+                              alt={rec.dishName}
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src =
+                                  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=500&auto=format&fit=crop&q=80";
+                              }}
+                            />
+                            <span
+                              className={`absolute top-1 right-1 size-2 rounded-full border border-white ${rec.veg ? "bg-green-600" : "bg-red-600"}`}
+                            />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <h4 className="font-bold text-sm text-foreground truncate">
+                                {rec.dishName}
+                              </h4>
+                              <span className="font-bold text-xs text-primary">
+                                {money(rec.suggestedPrice)}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {rec.category} · by {rec.studentName} ({rec.studentId})
+                            </p>
+                            <div className="mt-1 flex items-center gap-2">
+                              {rec.status === "accepted" ? (
+                                <Badge className="bg-green-600 text-white text-[9px]">
+                                  ✅ Accepted by Chef
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="text-[9px]">
+                                  🗳️ Voting
+                                </Badge>
+                              )}
+                              <span className="text-xs font-semibold text-amber-600">
+                                🔥 {rec.votes} Votes
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <p className="mt-3 rounded-lg bg-muted/40 p-2.5 text-xs text-foreground italic">
+                          &ldquo;{rec.reason}&rdquo;
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t text-xs text-muted-foreground">
+                        <span>Voters: {rec.votedBy.join(", ") || "None"}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm(`Remove recommendation for "${rec.dishName}"?`)) {
+                              deleteTomorrowRecommendation(rec.id);
+                              toast.success("Recommendation deleted.");
+                            }
+                          }}
+                          className="text-muted-foreground hover:text-destructive h-7 px-2"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Tab 3: Canteen Analytics */}
         <TabsContent value="canteen-analytics" className="space-y-4">
           <div className="grid gap-6 md:grid-cols-2">
@@ -577,13 +763,17 @@ function AdminPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {menu.map((item) => {
-                  const percent = Math.min(100, Math.round((item.sold / (item.quantity || 1)) * 100));
+                  const percent = Math.min(
+                    100,
+                    Math.round((item.sold / (item.quantity || 1)) * 100),
+                  );
                   return (
                     <div key={item.id} className="space-y-1.5">
                       <div className="flex justify-between text-sm">
                         <span className="font-semibold">{item.name}</span>
                         <span className="text-muted-foreground">
-                          {item.sold} / {item.quantity} sold ({percent}%) · {money(item.sold * item.price)}
+                          {item.sold} / {item.quantity} sold ({percent}%) ·{" "}
+                          {money(item.sold * item.price)}
                         </span>
                       </div>
                       <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
@@ -610,10 +800,14 @@ function AdminPage() {
                       <ChefHat className="h-6 w-6 text-amber-500" />
                       <div>
                         <h4 className="font-semibold">Live Kitchen Queue</h4>
-                        <p className="text-xs text-muted-foreground">Track and update cooking tickets</p>
+                        <p className="text-xs text-muted-foreground">
+                          Track and update cooking tickets
+                        </p>
                       </div>
                     </div>
-                    <Badge variant="outline">{orders.filter((o) => o.status !== "served").length} in queue</Badge>
+                    <Badge variant="outline">
+                      {orders.filter((o) => o.status !== "served").length} in queue
+                    </Badge>
                   </div>
                 </Link>
 
@@ -623,7 +817,9 @@ function AdminPage() {
                       <Utensils className="h-6 w-6 text-blue-500" />
                       <div>
                         <h4 className="font-semibold">Daily Menu Planner</h4>
-                        <p className="text-xs text-muted-foreground">Configure dishes, quantities and prices</p>
+                        <p className="text-xs text-muted-foreground">
+                          Configure dishes, quantities and prices
+                        </p>
                       </div>
                     </div>
                     <Badge variant="outline">{menu.length} items</Badge>
@@ -636,10 +832,14 @@ function AdminPage() {
                       <Wallet className="h-6 w-6 text-green-500" />
                       <div>
                         <h4 className="font-semibold">Meal Plan Top-Up Counter</h4>
-                        <p className="text-xs text-muted-foreground">Recharge student cards and review ledgers</p>
+                        <p className="text-xs text-muted-foreground">
+                          Recharge student cards and review ledgers
+                        </p>
                       </div>
                     </div>
-                    <Badge variant="outline">{users.filter((u) => u.role === "student").length} accounts</Badge>
+                    <Badge variant="outline">
+                      {users.filter((u) => u.role === "student").length} accounts
+                    </Badge>
                   </div>
                 </Link>
               </CardContent>
@@ -759,20 +959,28 @@ function AdminPage() {
             <div className="space-y-4 py-2">
               <div className="rounded-lg bg-muted/40 p-3 space-y-1 text-sm">
                 <p>
-                  <strong>Item:</strong> {selectedReport.foodItemName} {selectedReport.token && `(Token #${selectedReport.token})`}
+                  <strong>Item:</strong> {selectedReport.foodItemName}{" "}
+                  {selectedReport.token && `(Token #${selectedReport.token})`}
                 </p>
                 <p>
-                  <strong>Student:</strong> {selectedReport.studentName} ({selectedReport.studentId})
+                  <strong>Student:</strong> {selectedReport.studentName} ({selectedReport.studentId}
+                  )
                 </p>
                 <p>
-                  <strong>Category:</strong> {selectedReport.category} · Rating: {selectedReport.rating}/5
+                  <strong>Category:</strong> {selectedReport.category} · Rating:{" "}
+                  {selectedReport.rating}/5
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground italic">"{selectedReport.description}"</p>
+                <p className="mt-1 text-xs text-muted-foreground italic">
+                  "{selectedReport.description}"
+                </p>
               </div>
 
               <div className="space-y-1.5">
                 <Label>Update Status</Label>
-                <Select value={actionStatus} onValueChange={(v) => setActionStatus(v as FoodReportStatus)}>
+                <Select
+                  value={actionStatus}
+                  onValueChange={(v) => setActionStatus(v as FoodReportStatus)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

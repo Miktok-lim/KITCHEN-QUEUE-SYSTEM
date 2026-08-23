@@ -13,18 +13,19 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  login,
-  loginAsRole,
-  useCanteen,
-  type User,
-  type UserRole,
-} from "@/lib/canteen-store";
+import { login, loginAsRole, useCanteen, type User, type UserRole } from "@/lib/canteen-store";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -32,7 +33,8 @@ export const Route = createFileRoute("/login")({
       { title: "Login & Portal Access — College Kitchen" },
       {
         name: "description",
-        content: "Sign in to access your role-based canteen dashboard: Student ordering, Kitchen staff board, or Campus Admin management.",
+        content:
+          "Sign in to access your role-based canteen dashboard: Student ordering, Kitchen staff board, or Campus Admin management.",
       },
     ],
   }),
@@ -94,7 +96,8 @@ function LoginPage() {
             Welcome to College Kitchen
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            Select your campus role or enter your credentials to access customized ordering, live kitchen operations, or full administrative control.
+            Select your campus role or enter your credentials to access customized ordering, live
+            kitchen operations, or full administrative control.
           </p>
         </div>
 
@@ -104,7 +107,15 @@ function LoginPage() {
             <div className="flex flex-wrap items-center justify-center gap-3">
               <span className="text-sm text-muted-foreground">Currently active account:</span>
               <span className="font-semibold text-foreground">{currentUser.name}</span>
-              <Badge variant={currentUser.role === "admin" ? "default" : currentUser.role === "staff" ? "secondary" : "outline"}>
+              <Badge
+                variant={
+                  currentUser.role === "admin"
+                    ? "default"
+                    : currentUser.role === "staff"
+                      ? "secondary"
+                      : "outline"
+                }
+              >
                 {currentUser.role.toUpperCase()}
               </Badge>
               <Button size="sm" variant="outline" onClick={() => redirectByRole(currentUser.role)}>
@@ -115,17 +126,30 @@ function LoginPage() {
         )}
 
         {/* Role Quick Selector Tabs */}
-        <Tabs value={selectedRoleTab} onValueChange={(v) => setSelectedRoleTab(v as UserRole)} className="w-full">
+        <Tabs
+          value={selectedRoleTab}
+          onValueChange={(v) => setSelectedRoleTab(v as UserRole)}
+          className="w-full"
+        >
           <TabsList className="grid h-14 w-full grid-cols-3 rounded-xl p-1 shadow-sm">
-            <TabsTrigger value="student" className="flex items-center gap-2 rounded-lg py-2.5 data-[state=active]:shadow-sm">
+            <TabsTrigger
+              value="student"
+              className="flex items-center gap-2 rounded-lg py-2.5 data-[state=active]:shadow-sm"
+            >
               <GraduationCap className="h-4 w-4" />
               <span className="font-semibold">Student Portal</span>
             </TabsTrigger>
-            <TabsTrigger value="staff" className="flex items-center gap-2 rounded-lg py-2.5 data-[state=active]:shadow-sm">
+            <TabsTrigger
+              value="staff"
+              className="flex items-center gap-2 rounded-lg py-2.5 data-[state=active]:shadow-sm"
+            >
               <ChefHat className="h-4 w-4" />
               <span className="font-semibold">Kitchen Staff</span>
             </TabsTrigger>
-            <TabsTrigger value="admin" className="flex items-center gap-2 rounded-lg py-2.5 data-[state=active]:shadow-sm">
+            <TabsTrigger
+              value="admin"
+              className="flex items-center gap-2 rounded-lg py-2.5 data-[state=active]:shadow-sm"
+            >
               <Shield className="h-4 w-4" />
               <span className="font-semibold">Campus Admin</span>
             </TabsTrigger>
@@ -143,11 +167,15 @@ function LoginPage() {
                     <div>
                       <CardTitle>Student Sign-In</CardTitle>
                       <CardDescription>
-                        Order food, track real-time meal tokens, manage wallet balance & submit quality feedback.
+                        Order food, track real-time meal tokens, manage wallet balance & submit
+                        quality feedback.
                       </CardDescription>
                     </div>
                   </div>
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                  <Badge
+                    variant="outline"
+                    className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                  >
                     Role: Student
                   </Badge>
                 </div>
@@ -165,8 +193,12 @@ function LoginPage() {
                         className="group flex flex-col items-start rounded-xl border border-border p-3.5 text-left transition-all hover:border-blue-500 hover:bg-blue-50/50 hover:shadow-sm dark:hover:bg-blue-950/20"
                       >
                         <div className="flex w-full items-center justify-between">
-                          <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">{st.id}</span>
-                          <span className="text-xs text-muted-foreground">Rs {st.balance ?? 0}</span>
+                          <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                            {st.id}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            Rs {st.balance ?? 0}
+                          </span>
                         </div>
                         <span className="mt-1 font-semibold text-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400">
                           {st.name}
@@ -205,11 +237,15 @@ function LoginPage() {
                     <div>
                       <CardTitle>Kitchen Staff Sign-In</CardTitle>
                       <CardDescription>
-                        Live order queue management, cooking pipeline, and daily menu portion planning.
+                        Live order queue management, cooking pipeline, and daily menu portion
+                        planning.
                       </CardDescription>
                     </div>
                   </div>
-                  <Badge variant="outline" className="bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                  <Badge
+                    variant="outline"
+                    className="bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                  >
                     Role: Staff
                   </Badge>
                 </div>
@@ -227,8 +263,12 @@ function LoginPage() {
                         className="group flex flex-col items-start rounded-xl border border-border p-4 text-left transition-all hover:border-amber-500 hover:bg-amber-50/50 hover:shadow-sm dark:hover:bg-amber-950/20"
                       >
                         <div className="flex w-full items-center justify-between">
-                          <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">{staff.id}</span>
-                          <Badge variant="secondary" className="text-[10px]">Active Shift</Badge>
+                          <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                            {staff.id}
+                          </span>
+                          <Badge variant="secondary" className="text-[10px]">
+                            Active Shift
+                          </Badge>
                         </div>
                         <span className="mt-1 font-semibold text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400">
                           {staff.name}
@@ -267,11 +307,15 @@ function LoginPage() {
                     <div>
                       <CardTitle>Campus Administrator Sign-In</CardTitle>
                       <CardDescription>
-                        Complete authority: Add/remove users, investigate food complaints, & review financial reports.
+                        Complete authority: Add/remove users, investigate food complaints, & review
+                        financial reports.
                       </CardDescription>
                     </div>
                   </div>
-                  <Badge variant="outline" className="bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                  <Badge
+                    variant="outline"
+                    className="bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+                  >
                     Role: Administrator
                   </Badge>
                 </div>
@@ -289,7 +333,9 @@ function LoginPage() {
                         className="group flex flex-col items-start rounded-xl border border-border p-4 text-left transition-all hover:border-purple-500 hover:bg-purple-50/50 hover:shadow-sm dark:hover:bg-purple-950/20"
                       >
                         <div className="flex w-full items-center justify-between">
-                          <span className="text-xs font-semibold text-purple-600 dark:text-purple-400">{adm.id}</span>
+                          <span className="text-xs font-semibold text-purple-600 dark:text-purple-400">
+                            {adm.id}
+                          </span>
                           <Badge className="bg-purple-600 text-[10px]">Super Admin</Badge>
                         </div>
                         <span className="mt-1 font-semibold text-foreground group-hover:text-purple-600 dark:group-hover:text-purple-400">
@@ -323,7 +369,8 @@ function LoginPage() {
           <CardHeader>
             <CardTitle className="text-base">Or Sign In with User ID / Roll Number</CardTitle>
             <CardDescription>
-              Enter any existing ID (e.g. <code>CS2201</code>, <code>STAFF01</code>, <code>ADMIN01</code>).
+              Enter any existing ID (e.g. <code>CS2201</code>, <code>STAFF01</code>,{" "}
+              <code>ADMIN01</code>).
             </CardDescription>
           </CardHeader>
           <CardContent>

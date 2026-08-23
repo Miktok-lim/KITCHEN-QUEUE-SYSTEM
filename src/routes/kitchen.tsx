@@ -65,10 +65,14 @@ export const Route = createFileRoute("/kitchen")({
       { title: "Kitchen Staff Orders & Custom Voice — College Kitchen" },
       {
         name: "description",
-        content: "Live incoming orders with custom voice speech announcements, audio recorder, and menu stock controls.",
+        content:
+          "Live incoming orders with custom voice speech announcements, audio recorder, and menu stock controls.",
       },
       { property: "og:title", content: "Kitchen Staff Orders & Custom Voice — College Kitchen" },
-      { property: "og:description", content: "Incoming orders, custom voice engine, and sold-out controls for canteen staff." },
+      {
+        property: "og:description",
+        content: "Incoming orders, custom voice engine, and sold-out controls for canteen staff.",
+      },
     ],
   }),
   component: KitchenBoard,
@@ -185,8 +189,13 @@ async function speakOrderAnnouncement(order: Order, config: VoiceConfig) {
       if (selected) utterance.voice = selected;
     } else {
       const naturalVoice =
-        voices.find((v) => v.lang.startsWith("en") && (v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Samantha"))) ||
-        voices.find((v) => v.lang.startsWith("en"));
+        voices.find(
+          (v) =>
+            v.lang.startsWith("en") &&
+            (v.name.includes("Google") ||
+              v.name.includes("Natural") ||
+              v.name.includes("Samantha")),
+        ) || voices.find((v) => v.lang.startsWith("en"));
       if (naturalVoice) utterance.voice = naturalVoice;
     }
 
@@ -282,7 +291,11 @@ function KitchenBoard() {
         reader.readAsDataURL(audioBlob);
         reader.onloadend = () => {
           const base64data = reader.result as string;
-          const updated = { ...voiceConfig, customAudioBase64: base64data, useCustomAudioFirst: true };
+          const updated = {
+            ...voiceConfig,
+            customAudioBase64: base64data,
+            useCustomAudioFirst: true,
+          };
           setVoiceConfig(updated);
           saveVoiceConfig(updated);
           toast.success("Voice recording saved! It will play when new orders arrive.");
@@ -351,7 +364,8 @@ function KitchenBoard() {
         </div>
         <h1 className="text-2xl font-bold">Kitchen Staff Access Only</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Students can track their own meal tokens directly from the <strong>Student Dashboard</strong>.
+          Students can track their own meal tokens directly from the{" "}
+          <strong>Student Dashboard</strong>.
         </p>
         <div className="mt-6 flex justify-center gap-3">
           <Link to="/dashboard">
@@ -387,12 +401,17 @@ function KitchenBoard() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-3xl font-bold">Kitchen Order & Stock Board</h1>
-              <Badge className={voiceEnabled ? "bg-green-600 text-white" : "bg-muted text-muted-foreground"}>
+              <Badge
+                className={
+                  voiceEnabled ? "bg-green-600 text-white" : "bg-muted text-muted-foreground"
+                }
+              >
                 {voiceEnabled ? "🔊 Voice Alert ON" : "🔇 Voice Alert Muted"}
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              {queuedOrders.length} incoming orders · {readyOrders.length} ready for pickup · {soldOutCount} items sold out
+              {queuedOrders.length} incoming orders · {readyOrders.length} ready for pickup ·{" "}
+              {soldOutCount} items sold out
             </p>
           </div>
         </div>
@@ -404,7 +423,9 @@ function KitchenBoard() {
             size="sm"
             onClick={() => {
               setVoiceEnabled(!voiceEnabled);
-              toast(voiceEnabled ? "🔇 Kitchen Voice Alerts Muted" : "🔊 Kitchen Voice Alerts Enabled");
+              toast(
+                voiceEnabled ? "🔇 Kitchen Voice Alerts Muted" : "🔊 Kitchen Voice Alerts Enabled",
+              );
             }}
             className="gap-1.5"
           >
@@ -439,7 +460,9 @@ function KitchenBoard() {
           <div>
             <div className="flex items-center gap-2">
               <PackageX className="h-5 w-5 text-amber-600" />
-              <h2 className="text-base font-bold text-foreground">Raw Material & Item Availability</h2>
+              <h2 className="text-base font-bold text-foreground">
+                Raw Material & Item Availability
+              </h2>
               {soldOutCount > 0 && (
                 <Badge variant="destructive" className="text-xs">
                   {soldOutCount} Sold Out
@@ -447,7 +470,8 @@ function KitchenBoard() {
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              If raw materials/ingredients run out, mark dishes as <strong>Sold Out</strong> below. Students will not be able to order them.
+              If raw materials/ingredients run out, mark dishes as <strong>Sold Out</strong> below.
+              Students will not be able to order them.
             </p>
           </div>
         </div>
@@ -468,20 +492,26 @@ function KitchenBoard() {
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
-                    <span className="font-bold text-foreground text-sm leading-tight">{item.name}</span>
+                    <span className="font-bold text-foreground text-sm leading-tight">
+                      {item.name}
+                    </span>
                     <span
                       className={`mt-0.5 size-2 shrink-0 rounded-full ${item.veg ? "bg-green-600" : "bg-red-600"}`}
                       title={item.veg ? "Vegetarian" : "Non-vegetarian"}
                     />
                   </div>
                   <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{money(item.price)} · {item.category}</span>
+                    <span>
+                      {money(item.price)} · {item.category}
+                    </span>
                     <span>{left} left</span>
                   </div>
                 </div>
 
                 <div className="mt-3 flex items-center justify-between border-t pt-2.5">
-                  <span className={`text-xs font-semibold ${isSoldOut ? "text-red-700 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+                  <span
+                    className={`text-xs font-semibold ${isSoldOut ? "text-red-700 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}
+                  >
                     {isSoldOut ? "🔴 SOLD OUT" : "🟢 Available"}
                   </span>
                   <div className="flex items-center gap-2">
@@ -507,7 +537,10 @@ function KitchenBoard() {
               <Clock className="h-5 w-5 text-amber-500" />
               <h2 className="text-base font-bold text-foreground">Incoming Orders</h2>
             </div>
-            <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 font-bold">
+            <Badge
+              variant="outline"
+              className="border-amber-400 bg-amber-50 text-amber-800 font-bold"
+            >
               {queuedOrders.length} Pending
             </Badge>
           </div>
@@ -517,7 +550,9 @@ function KitchenBoard() {
               <div className="py-16 text-center text-muted-foreground">
                 <Clock className="mx-auto mb-2 h-10 w-10 opacity-30" />
                 <p className="text-sm font-medium">No pending orders right now.</p>
-                <p className="text-xs">New orders placed by students will be announced by voice and appear here.</p>
+                <p className="text-xs">
+                  New orders placed by students will be announced by voice and appear here.
+                </p>
               </div>
             ) : (
               queuedOrders.map((order) => (
@@ -541,9 +576,7 @@ function KitchenBoard() {
               <CheckCircle2 className="h-5 w-5 text-green-500" />
               <h2 className="text-base font-bold text-foreground">Ready for Pickup</h2>
             </div>
-            <Badge className="bg-green-600 font-bold text-white">
-              {readyOrders.length} Ready
-            </Badge>
+            <Badge className="bg-green-600 font-bold text-white">{readyOrders.length} Ready</Badge>
           </div>
 
           <div className="space-y-3">
@@ -576,7 +609,8 @@ function KitchenBoard() {
               <Sliders className="h-5 w-5 text-purple-600" /> Customize Kitchen Voice & Audio
             </DialogTitle>
             <DialogDescription>
-              Record your own voice, upload custom audio chimes, or customize speech pitch, speed, and accent.
+              Record your own voice, upload custom audio chimes, or customize speech pitch, speed,
+              and accent.
             </DialogDescription>
           </DialogHeader>
 
@@ -679,16 +713,24 @@ function KitchenBoard() {
               <div className="rounded-xl border p-4 bg-muted/30 space-y-3">
                 <h4 className="font-semibold text-sm">🎙️ Record Your Own Kitchen Alert Voice</h4>
                 <p className="text-xs text-muted-foreground">
-                  Record your own voice (e.g. <em>"Attention chef, new order incoming!"</em>) using your microphone.
+                  Record your own voice (e.g. <em>"Attention chef, new order incoming!"</em>) using
+                  your microphone.
                 </p>
 
                 <div className="flex items-center gap-3">
                   {!isRecording ? (
-                    <Button onClick={startRecording} className="gap-2 bg-red-600 hover:bg-red-700 text-white">
+                    <Button
+                      onClick={startRecording}
+                      className="gap-2 bg-red-600 hover:bg-red-700 text-white"
+                    >
                       <Mic className="h-4 w-4" /> Start Recording
                     </Button>
                   ) : (
-                    <Button onClick={stopRecording} variant="destructive" className="gap-2 animate-pulse">
+                    <Button
+                      onClick={stopRecording}
+                      variant="destructive"
+                      className="gap-2 animate-pulse"
+                    >
                       <Square className="h-4 w-4" /> Stop & Save Recording
                     </Button>
                   )}
@@ -696,7 +738,9 @@ function KitchenBoard() {
               </div>
 
               <div className="rounded-xl border p-4 bg-muted/30 space-y-3">
-                <h4 className="font-semibold text-sm">📁 Or Upload Custom Audio File (.mp3 / .wav)</h4>
+                <h4 className="font-semibold text-sm">
+                  📁 Or Upload Custom Audio File (.mp3 / .wav)
+                </h4>
                 <p className="text-xs text-muted-foreground">
                   Upload an audio bell, custom recorded voice, or kitchen chime file.
                 </p>
@@ -724,7 +768,11 @@ function KitchenBoard() {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        const updated = { ...voiceConfig, customAudioBase64: undefined, useCustomAudioFirst: false };
+                        const updated = {
+                          ...voiceConfig,
+                          customAudioBase64: undefined,
+                          useCustomAudioFirst: false,
+                        };
                         setVoiceConfig(updated);
                         saveVoiceConfig(updated);
                         toast.info("Custom audio clip removed.");
@@ -795,7 +843,10 @@ function OrderCard({
             )}
           </div>
           <span className="text-xs text-muted-foreground">
-            {new Date(order.placedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            {new Date(order.placedAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </span>
         </div>
 
@@ -803,7 +854,9 @@ function OrderCard({
           <p className="text-sm font-bold text-foreground">
             {order.customerName ?? "Walk-in Customer"}
             {order.studentId && (
-              <span className="ml-1 text-xs font-normal text-muted-foreground">({order.studentId})</span>
+              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                ({order.studentId})
+              </span>
             )}
           </p>
         </div>
@@ -811,7 +864,9 @@ function OrderCard({
         <ul className="space-y-1 rounded-lg bg-muted/40 p-2.5 text-sm font-medium">
           {order.lines.map((l) => (
             <li key={l.itemId} className="flex justify-between">
-              <span>{l.qty} × {l.name}</span>
+              <span>
+                {l.qty} × {l.name}
+              </span>
             </li>
           ))}
         </ul>
