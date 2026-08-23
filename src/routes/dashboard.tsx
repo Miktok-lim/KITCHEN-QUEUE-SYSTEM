@@ -166,6 +166,10 @@ function StudentDashboard() {
         return <Badge className="animate-pulse bg-green-600 text-white">🟢 Ready for Pickup!</Badge>;
       case "served":
         return <Badge variant="secondary">⚪ Completed</Badge>;
+      case "cancelled":
+        return <Badge variant="destructive">🔴 Discarded</Badge>;
+      default:
+        return null;
     }
   };
 

@@ -79,7 +79,7 @@ export type VoiceConfig = {
   rate: number;
   pitch: number;
   prefixPhrase: string;
-  customAudioBase64?: string;
+  customAudioBase64?: string | undefined;
   useCustomAudioFirst: boolean;
 };
 

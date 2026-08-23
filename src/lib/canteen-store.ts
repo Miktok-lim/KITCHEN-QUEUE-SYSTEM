@@ -407,12 +407,12 @@ export function logout() {
 /* ---------- User Management (Admin Authority) ---------- */
 
 export type AddUserInput = {
-  id?: string;
+  id?: string | undefined;
   name: string;
   role: UserRole;
-  program?: string;
-  department?: string;
-  balance?: number;
+  program?: string | undefined;
+  department?: string | undefined;
+  balance?: number | undefined;
 };
 
 export function addUser(input: AddUserInput): { ok: boolean; user?: User; error?: string } {
@@ -505,9 +505,9 @@ export function updateUser(userId: string, patch: Partial<User>) {
 /* ---------- Food Reports & Complaints System ---------- */
 
 export type SubmitReportInput = {
-  orderId?: string;
-  token?: number;
-  foodItemId?: string;
+  orderId?: string | undefined;
+  token?: number | undefined;
+  foodItemId?: string | undefined;
   foodItemName: string;
   category: FoodReportCategory;
   rating: number;

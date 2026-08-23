@@ -2,6 +2,9 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { handleCanteenApi } from "./src/lib/server-store";
 
 export default defineConfig({
+  nitro: {
+    preset: process.env["NITRO_PRESET"] || (process.env["VERCEL"] ? "vercel" : "vercel"),
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
@@ -29,9 +32,9 @@ export default defineConfig({
               }
 
               const webReq = new Request(fullUrl, {
-                method: req.method,
+                method: req.method ?? "GET",
                 headers: req.headers as any,
-                body: req.method === "POST" && bodyStr ? bodyStr : undefined,
+                body: req.method === "POST" && bodyStr ? bodyStr : null,
               });
 
               try {
