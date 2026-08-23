@@ -8,6 +8,9 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    ssr: {
+      noExternal: ["tslib"],
+    },
     plugins: [
       {
         name: "canteen-api-dev-middleware",
