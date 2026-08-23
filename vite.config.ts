@@ -4,6 +4,12 @@ import { handleCanteenApi } from "./src/lib/server-store";
 export default defineConfig({
   nitro: {
     preset: process.env["NITRO_PRESET"] || (process.env["VERCEL"] ? "vercel" : "vercel"),
+    handlers: [
+      {
+        route: "/**",
+        handler: "./src/nitro-ssr-handler.ts",
+      },
+    ],
   },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
